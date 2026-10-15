@@ -49,7 +49,7 @@
         <button onclick="openScheduleModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-semibold shadow transition">
           📅 Set Time
         </button>
-        <button onclick="createWipeRequest()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-semibold transition" title="Reset All Tournament Data">
+        <button onclick="triggerWipeAction()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-semibold transition" title="Reset All Tournament Data">
           🗑️
         </button>
       </div>
@@ -78,7 +78,7 @@
   <!-- MAIN CONTAINER -->
   <main class="max-w-4xl mx-auto px-4 mt-4">
 
-    <!-- LIVE APPROVAL NOTIFICATION BANNER (VISIBLE TO ALL USERS WHEN REQUESTED) -->
+    <!-- LIVE APPROVAL NOTIFICATION BANNER -->
     <div id="approval-banner" class="hidden mb-4 bg-amber-500/15 border-2 border-amber-500/60 rounded-xl p-3 text-slate-200 shadow-lg animate-pulse">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-2">
@@ -161,7 +161,6 @@
       </div>
 
       <div id="playoff-container" class="hidden space-y-4">
-        <!-- CHAMPIONS BANNER -->
         <div id="champion-banner" class="hidden bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 rounded-xl p-5 text-center text-slate-900 shadow-xl space-y-1 animate-bounce">
           <span class="text-4xl">🏆</span>
           <h2 class="text-2xl font-extrabold uppercase tracking-wider" id="champion-team-name">TEAM WINNER</h2>
@@ -187,6 +186,34 @@
     </section>
   </main>
 
+  <!-- MODAL: PASSCODE & APPROVAL CHOICE -->
+  <div id="passcode-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-sm w-full space-y-4 text-slate-100">
+      <div class="flex items-center gap-2 text-amber-400">
+        <span class="text-2xl">🔐</span>
+        <h3 id="passcode-modal-title" class="text-base font-bold text-white">Reset Authorization</h3>
+      </div>
+      <p id="passcode-modal-desc" class="text-xs text-slate-300">Enter Admin Passcode <span class="text-amber-400 font-mono font-bold">(1234)</span> to reset immediately, or request multi-person approval across phones.</p>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Passcode</label>
+        <input type="password" id="passcode-input" placeholder="Enter code" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500">
+      </div>
+
+      <div class="flex flex-col gap-2 pt-1">
+        <button onclick="verifyPasscode()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-sm transition">
+          Unlock & Reset Now
+        </button>
+        <button onclick="requestLiveApproval()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-2.5 rounded-lg text-xs transition">
+          Request Approval From Other Devices Instead
+        </button>
+        <button onclick="closePasscodeModal()" class="w-full bg-transparent text-slate-400 text-xs py-1 hover:text-white transition">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: SET SCHEDULE START TIME -->
   <div id="schedule-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-sm w-full space-y-4 text-slate-100">
@@ -207,7 +234,6 @@
 
   <!-- JAVASCRIPT APP CORE -->
   <script>
-    // --- FIREBASE CONFIGURATION ---
     const firebaseConfig = {
       apiKey: "AIzaSyD-eVIS7B1k26L4tx4FqOStHbVSOTfir4Y",
       authDomain: "soccer-tournament-manage-2d291.firebaseapp.com",
@@ -221,7 +247,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Device Unique Identifier
     const myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
 
     const defaultGroupMatches = [
@@ -237,6 +262,7 @@
     let matchesData = {};
     let playoffData = {};
     let activeRequest = null;
+    let pendingAction = null;
     let audioContext = null;
 
     function getNextSaturday7PM() {
@@ -250,7 +276,7 @@
       return result.getTime();
     }
 
-    // --- FIREBASE REALTIME LISTENERS ---
+    // FIREBASE LISTENERS
     db.ref('tournament_config').on('value', snapshot => {
       const val = snapshot.val();
       if (val && val.startTime) {
@@ -271,13 +297,12 @@
       renderPlayoffs();
     });
 
-    // APPROVAL SYSTEM LIVE LISTENER
     db.ref('active_request').on('value', snapshot => {
       activeRequest = snapshot.val();
       renderApprovalBanner();
     });
 
-    // --- AUDIO SYSTEM ---
+    // AUDIO SYSTEM
     function enableAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -290,7 +315,6 @@
       document.getElementById('enable-audio-btn').classList.replace('bg-amber-600', 'bg-emerald-600');
     }
 
-    // --- UI HELPERS ---
     function updateScheduleHeader() {
       const d = new Date(tournamentStartTime);
       const dateStr = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
@@ -310,7 +334,7 @@
       document.getElementById(`tab-btn-${tab}`).classList.remove('text-slate-400');
     }
 
-    // --- RENDER MATCHES ---
+    // RENDER MATCHES
     function renderMatches() {
       const container = document.getElementById('matches-list');
       container.innerHTML = '';
@@ -384,14 +408,14 @@
       const now = Date.now();
 
       if (match.status === 'running') {
-        return `<button onclick="createMatchResetRequest(${matchId})" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 animate-pulse">
-          ⏱️ Running (Request Reset)
+        return `<button onclick="triggerMatchResetAction(${matchId})" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 animate-pulse">
+          ⏱️ Running (Reset / Unlock)
         </button>`;
       }
 
       if (match.status === 'completed' || now > scheduledEndTime) {
-        return `<button onclick="createMatchResetRequest(${matchId})" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg font-semibold">
-          🔒 Finished (Request Restart)
+        return `<button onclick="triggerMatchResetAction(${matchId})" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg font-semibold">
+          🔒 Finished (Restart / Unlock)
         </button>`;
       }
 
@@ -401,6 +425,7 @@
     }
 
     function getTeamColorClass(team) {
+      if (!team) return 'text-white';
       switch (team.toLowerCase()) {
         case 'blue': return 'text-blue-400';
         case 'red': return 'text-red-400';
@@ -428,32 +453,79 @@
       });
     }
 
-    // --- REALTIME PUSH APPROVAL SYSTEM ---
-    function createMatchResetRequest(matchId) {
-      const approvals = {};
-      approvals[myDeviceId] = true; // Requestor automatically approves
-
-      db.ref('active_request').set({
-        type: 'RESET_MATCH',
-        matchId: matchId,
-        title: `Reset Match #${matchId}`,
-        desc: `A reset has been requested for Match #${matchId}. Needs 2 approvals.`,
-        requiredApprovals: 2,
-        approvals: approvals
-      });
+    // PASSCODE (1234) & APPROVAL LOGIC
+    function triggerMatchResetAction(matchId) {
+      pendingAction = { type: 'RESET_MATCH', matchId: matchId };
+      document.getElementById('passcode-modal-title').innerText = `Reset Match #${matchId}`;
+      document.getElementById('passcode-input').value = '';
+      document.getElementById('passcode-modal').classList.remove('hidden');
     }
 
-    function createWipeRequest() {
+    function triggerWipeAction() {
+      pendingAction = { type: 'RESET_ALL' };
+      document.getElementById('passcode-modal-title').innerText = `Wipe Entire Tournament`;
+      document.getElementById('passcode-input').value = '';
+      document.getElementById('passcode-modal').classList.remove('hidden');
+    }
+
+    function verifyPasscode() {
+      const code = document.getElementById('passcode-input').value.trim();
+      if (code === '1234') {
+        executePendingAction();
+        closePasscodeModal();
+      } else {
+        alert('Incorrect passcode! Use code 1234 or request multi-person approval.');
+      }
+    }
+
+    function closePasscodeModal() {
+      document.getElementById('passcode-modal').classList.add('hidden');
+    }
+
+    function executePendingAction() {
+      if (!pendingAction) return;
+
+      if (pendingAction.type === 'RESET_MATCH') {
+        db.ref(`matches/${pendingAction.matchId}`).set({
+          status: 'idle',
+          winner: null,
+          scoreA: null,
+          scoreB: null,
+          startedAt: null
+        });
+      } else if (pendingAction.type === 'RESET_ALL') {
+        db.ref('matches').remove();
+        db.ref('playoffs').remove();
+      }
+      pendingAction = null;
+    }
+
+    function requestLiveApproval() {
+      if (!pendingAction) return;
+
       const approvals = {};
       approvals[myDeviceId] = true;
 
-      db.ref('active_request').set({
-        type: 'RESET_ALL',
-        title: `Reset Entire Tournament`,
-        desc: `Wiping all matches and standings requires 3 approvals across phones.`,
-        requiredApprovals: 3,
-        approvals: approvals
-      });
+      if (pendingAction.type === 'RESET_MATCH') {
+        db.ref('active_request').set({
+          type: 'RESET_MATCH',
+          matchId: pendingAction.matchId,
+          title: `Reset Match #${pendingAction.matchId}`,
+          desc: `Needs 2 approvals across devices to reset Match #${pendingAction.matchId}.`,
+          requiredApprovals: 2,
+          approvals: approvals
+        });
+      } else if (pendingAction.type === 'RESET_ALL') {
+        db.ref('active_request').set({
+          type: 'RESET_ALL',
+          title: `Reset Entire Tournament`,
+          desc: `Needs 3 approvals across devices to wipe tournament data.`,
+          requiredApprovals: 3,
+          approvals: approvals
+        });
+      }
+
+      closePasscodeModal();
     }
 
     function renderApprovalBanner() {
@@ -482,7 +554,6 @@
 
       banner.classList.remove('hidden');
 
-      // Check if threshold reached
       if (currentCount >= required) {
         executeActiveRequest();
       }
@@ -513,11 +584,10 @@
         db.ref('playoffs').remove();
       }
 
-      // Clear the request after executing
       db.ref('active_request').remove();
     }
 
-    // --- SCHEDULE SETTING ---
+    // SCHEDULE SETTING
     function openScheduleModal() {
       const iso = new Date(tournamentStartTime - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
       document.getElementById('tournament-datetime-input').value = iso;
@@ -536,7 +606,7 @@
       closeScheduleModal();
     }
 
-    // --- STANDINGS & LEADERBOARD CALCULATION ---
+    // STANDINGS CALCULATION
     function calculateStandings() {
       const teams = {
         Blue:  { name: 'Blue', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 },
@@ -622,7 +692,7 @@
       }
     }
 
-    // --- PLAYOFF RENDER ---
+    // PLAYOFF RENDER
     function renderPlayoffs() {
       if (!playoffData.seeded) return;
 
@@ -667,7 +737,8 @@
       db.ref(`playoffs/${stage}`).update({ winner: team });
     }
 
-    // Live clock loop
+    // INITIAL RENDER CALL & LIVE CLOCK
+    renderMatches();
     setInterval(() => {
       const now = new Date();
       document.getElementById('live-clock-display').innerText = `Current Time: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
