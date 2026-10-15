@@ -38,7 +38,7 @@
         <span class="text-2xl">⚽</span>
         <div>
           <h1 class="text-lg font-bold text-white tracking-wide leading-tight">4-Team Tournament</h1>
-          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Sat 7:00 PM • 8m Games • 2m Rest</p>
+          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Sat 6:30 PM • 8m Games • 2m Rest</p>
         </div>
       </div>
       
@@ -220,7 +220,7 @@
       <h3 class="text-base font-bold text-white flex items-center gap-2">
         <span>📅</span> Tournament Start Time
       </h3>
-      <p class="text-xs text-slate-300">Set the official start date and time. All 8 game slots will automatically align into 10-minute intervals (8m match + 2m rest).</p>
+      <p class="text-xs text-slate-300">Set the official start date and time (e.g., 6:30 PM). All game slots will automatically adjust to 8-minute match blocks + 2-minute rest breaks.</p>
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1">Start Date & Time</label>
         <input type="datetime-local" id="tournament-datetime-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
@@ -258,18 +258,19 @@
       { id: 6, teamA: "Red", teamB: "White" }
     ];
 
-    let tournamentStartTime = getNextSaturday7PM();
+    let tournamentStartTime = getNextSaturday630PM();
     let matchesData = {};
     let playoffData = {};
     let activeRequest = null;
     let pendingAction = null;
     let audioContext = null;
+    let triggeredAlarms = {};
 
-    function getNextSaturday7PM() {
+    function getNextSaturday630PM() {
       const now = new Date();
       const result = new Date(now);
       result.setDate(now.getDate() + ((6 - now.getDay() + 7) % 7));
-      result.setHours(19, 0, 0, 0);
+      result.setHours(18, 30, 0, 0); // 6:30 PM default
       if (result.getTime() < now.getTime()) {
         result.setDate(result.getDate() + 7);
       }
@@ -302,7 +303,7 @@
       renderApprovalBanner();
     });
 
-    // AUDIO SYSTEM
+    // AUDIO SYSTEM (10 SECONDS ALARM)
     function enableAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -313,6 +314,29 @@
       document.getElementById('audio-icon').innerText = '🔔';
       document.getElementById('audio-text').innerText = 'Audio Ready';
       document.getElementById('enable-audio-btn').classList.replace('bg-amber-600', 'bg-emerald-600');
+    }
+
+    function play10SecondRefereeAlarm() {
+      if (!audioContext) return;
+      const duration = 10;
+      const startTime = audioContext.currentTime;
+
+      function triggerHornBeep(time) {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, time);
+        gain.gain.setValueAtTime(0.4, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.45);
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start(time);
+        osc.stop(time + 0.45);
+      }
+
+      for (let i = 0; i < duration * 2; i++) {
+        triggerHornBeep(startTime + (i * 0.5));
+      }
     }
 
     function updateScheduleHeader() {
@@ -334,20 +358,29 @@
       document.getElementById(`tab-btn-${tab}`).classList.remove('text-slate-400');
     }
 
-    // RENDER MATCHES
+    // RENDER MATCHES WITH STRICT TIMERS
     function renderMatches() {
       const container = document.getElementById('matches-list');
       container.innerHTML = '';
+      const now = Date.now();
 
       defaultGroupMatches.forEach((baseMatch, idx) => {
         const matchId = baseMatch.id;
         const match = matchesData[matchId] || { winner: null, scoreA: '', scoreB: '', status: 'idle' };
 
+        // 10-Minute Blocks (8m Game + 2m Rest)
         const matchStartTime = tournamentStartTime + (idx * 10 * 60 * 1000);
         const matchEndTime = matchStartTime + (8 * 60 * 1000);
 
         const startStr = new Date(matchStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const endStr = new Date(matchEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Trigger alarm when time hits match end time
+        if (match.status === 'running' && now >= matchEndTime && !triggeredAlarms[matchId]) {
+          triggeredAlarms[matchId] = true;
+          play10SecondRefereeAlarm();
+          db.ref(`matches/${matchId}`).update({ status: 'completed' });
+        }
 
         const card = document.createElement('div');
         card.className = "bg-slate-800 rounded-xl border border-slate-700 p-3.5 shadow flex flex-col gap-3";
@@ -355,7 +388,7 @@
         card.innerHTML = `
           <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-700/60 pb-2">
             <span class="font-bold text-amber-400">Match #${matchId}</span>
-            <span class="font-mono bg-slate-900/80 px-2 py-0.5 rounded text-slate-300">${startStr} – ${endStr}</span>
+            <span class="font-mono bg-slate-900/80 px-2.5 py-0.5 rounded text-amber-300 font-bold">${startStr} – ${endStr}</span>
           </div>
 
           <div class="flex items-center justify-between gap-2">
@@ -407,15 +440,20 @@
     function renderTimerButton(matchId, match, scheduledEndTime) {
       const now = Date.now();
 
-      if (match.status === 'running') {
+      if (match.status === 'running' && now < scheduledEndTime) {
+        const remainingSec = Math.max(0, Math.floor((scheduledEndTime - now) / 1000));
+        const mins = Math.floor(remainingSec / 60);
+        const secs = remainingSec % 60;
+        const timeDisplay = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
         return `<button onclick="triggerMatchResetAction(${matchId})" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 animate-pulse">
-          ⏱️ Running (Reset / Unlock)
+          ⏱️ ${timeDisplay} (Reset)
         </button>`;
       }
 
-      if (match.status === 'completed' || now > scheduledEndTime) {
+      if (match.status === 'completed' || now >= scheduledEndTime) {
         return `<button onclick="triggerMatchResetAction(${matchId})" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg font-semibold">
-          🔒 Finished (Restart / Unlock)
+          🔒 Finished (Passcode 1234)
         </button>`;
       }
 
@@ -453,7 +491,7 @@
       });
     }
 
-    // PASSCODE (1234) & APPROVAL LOGIC
+    // PASSCODE (1234) LOGIC
     function triggerMatchResetAction(matchId) {
       pendingAction = { type: 'RESET_MATCH', matchId: matchId };
       document.getElementById('passcode-modal-title').innerText = `Reset Match #${matchId}`;
@@ -474,7 +512,7 @@
         executePendingAction();
         closePasscodeModal();
       } else {
-        alert('Incorrect passcode! Use code 1234 or request multi-person approval.');
+        alert('Incorrect passcode! Enter 1234 or request approval.');
       }
     }
 
@@ -486,6 +524,7 @@
       if (!pendingAction) return;
 
       if (pendingAction.type === 'RESET_MATCH') {
+        delete triggeredAlarms[pendingAction.matchId];
         db.ref(`matches/${pendingAction.matchId}`).set({
           status: 'idle',
           winner: null,
@@ -494,6 +533,7 @@
           startedAt: null
         });
       } else if (pendingAction.type === 'RESET_ALL') {
+        triggeredAlarms = {};
         db.ref('matches').remove();
         db.ref('playoffs').remove();
       }
@@ -572,6 +612,7 @@
       if (!activeRequest) return;
 
       if (activeRequest.type === 'RESET_MATCH') {
+        delete triggeredAlarms[activeRequest.matchId];
         db.ref(`matches/${activeRequest.matchId}`).set({
           status: 'idle',
           winner: null,
@@ -580,6 +621,7 @@
           startedAt: null
         });
       } else if (activeRequest.type === 'RESET_ALL') {
+        triggeredAlarms = {};
         db.ref('matches').remove();
         db.ref('playoffs').remove();
       }
@@ -737,11 +779,12 @@
       db.ref(`playoffs/${stage}`).update({ winner: team });
     }
 
-    // INITIAL RENDER CALL & LIVE CLOCK
+    // INITIAL RENDER & SECOND TICK TICKER
     renderMatches();
     setInterval(() => {
       const now = new Date();
       document.getElementById('live-clock-display').innerText = `Current Time: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+      renderMatches(); // Re-render to refresh countdown timers live
     }, 1000);
   </script>
 </body>
