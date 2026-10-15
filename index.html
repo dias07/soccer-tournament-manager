@@ -26,7 +26,6 @@
       user-select: auto;
       -webkit-user-select: auto;
     }
-    /* Smooth transitions */
     .tab-content { transition: opacity 0.2s ease-in-out; }
   </style>
 </head>
@@ -50,7 +49,7 @@
         <button onclick="openScheduleModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-semibold shadow transition">
           📅 Set Time
         </button>
-        <button onclick="promptFullReset()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-semibold transition" title="Reset All Tournament Data">
+        <button onclick="createWipeRequest()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-semibold transition" title="Reset All Tournament Data">
           🗑️
         </button>
       </div>
@@ -78,6 +77,30 @@
 
   <!-- MAIN CONTAINER -->
   <main class="max-w-4xl mx-auto px-4 mt-4">
+
+    <!-- LIVE APPROVAL NOTIFICATION BANNER (VISIBLE TO ALL USERS WHEN REQUESTED) -->
+    <div id="approval-banner" class="hidden mb-4 bg-amber-500/15 border-2 border-amber-500/60 rounded-xl p-3 text-slate-200 shadow-lg animate-pulse">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">⚠️</span>
+          <div>
+            <h4 id="banner-action-title" class="font-bold text-amber-400 text-sm">Approval Request Active</h4>
+            <p id="banner-action-desc" class="text-xs text-slate-300"></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="approval-counter" class="text-xs font-mono font-bold bg-amber-500/30 text-amber-300 px-2.5 py-1 rounded-lg border border-amber-500/40">
+            0 / 0 Approvals
+          </span>
+          <button id="approve-action-btn" onclick="approveActiveRequest()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow transition">
+            👍 Approve
+          </button>
+          <button onclick="cancelActiveRequest()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-2.5 py-1.5 rounded-lg transition">
+            ✖️
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- SYNC STATUS BANNER -->
     <div class="flex items-center justify-between text-xs bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 mb-4 text-slate-300">
@@ -126,17 +149,6 @@
             </tbody>
           </table>
         </div>
-      </div>
-
-      <!-- RULES CARD -->
-      <div class="bg-slate-800/60 rounded-xl border border-slate-700/60 p-4 text-xs text-slate-300 space-y-2">
-        <h3 class="font-bold text-amber-400 text-sm">Tournament Rules Summary</h3>
-        <ul class="list-disc list-inside space-y-1 text-slate-300">
-          <li><strong>Points:</strong> Win = 2 points, Draw = 1 point, Loss = 0 points.</li>
-          <li><strong>Tie-Breakers:</strong> 1) Points ➔ 2) Goal Difference (GD) ➔ 3) Goals Scored ➔ 4) Head-to-Head.</li>
-          <li><strong>Game Structure:</strong> 8 minutes playing time with strict scheduled completion.</li>
-          <li><strong>Governance:</strong> Restarting active/ended matches requires 2-person approval. Wiping data requires 3 approvals.</li>
-        </ul>
       </div>
     </section>
 
@@ -193,26 +205,6 @@
     </div>
   </div>
 
-  <!-- MODAL: APPROVAL VERIFICATION (2 OR 3 PERSONS) -->
-  <div id="approval-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-md w-full space-y-4 text-slate-100">
-      <div class="flex items-center gap-2 text-amber-400">
-        <span class="text-2xl">⚠️</span>
-        <h3 id="approval-title" class="text-base font-bold">Multi-Person Approval Required</h3>
-      </div>
-      <p id="approval-desc" class="text-xs text-slate-300 leading-relaxed"></p>
-
-      <div id="approval-inputs" class="space-y-2">
-        <!-- Input fields injected by JS -->
-      </div>
-
-      <div class="flex gap-2 pt-2">
-        <button onclick="submitApproval()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-sm transition">Approve & Execute</button>
-        <button onclick="closeApprovalModal()" class="px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 py-2.5 rounded-lg text-sm transition">Cancel</button>
-      </div>
-    </div>
-  </div>
-
   <!-- JAVASCRIPT APP CORE -->
   <script>
     // --- FIREBASE CONFIGURATION ---
@@ -226,11 +218,12 @@
       measurementId: "G-0BM2Y78X0B"
     };
 
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Default Match Base List
+    // Device Unique Identifier
+    const myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
+
     const defaultGroupMatches = [
       { id: 1, teamA: "Blue", teamB: "Red" },
       { id: 2, teamA: "White", teamB: "Black" },
@@ -240,15 +233,12 @@
       { id: 6, teamA: "Red", teamB: "White" }
     ];
 
-    // State Variables
     let tournamentStartTime = getNextSaturday7PM();
     let matchesData = {};
     let playoffData = {};
+    let activeRequest = null;
     let audioContext = null;
-    let alarmInterval = null;
-    let activeApprovalAction = null;
 
-    // Get default next Saturday 7:00 PM
     function getNextSaturday7PM() {
       const now = new Date();
       const result = new Date(now);
@@ -260,7 +250,7 @@
       return result.getTime();
     }
 
-    // --- FIREBASE LISTENERS ---
+    // --- FIREBASE REALTIME LISTENERS ---
     db.ref('tournament_config').on('value', snapshot => {
       const val = snapshot.val();
       if (val && val.startTime) {
@@ -281,7 +271,13 @@
       renderPlayoffs();
     });
 
-    // --- AUDIO ALARM SYSTEM ---
+    // APPROVAL SYSTEM LIVE LISTENER
+    db.ref('active_request').on('value', snapshot => {
+      activeRequest = snapshot.val();
+      renderApprovalBanner();
+    });
+
+    // --- AUDIO SYSTEM ---
     function enableAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -294,30 +290,7 @@
       document.getElementById('enable-audio-btn').classList.replace('bg-amber-600', 'bg-emerald-600');
     }
 
-    function playRefereeAlarm() {
-      if (!audioContext) return;
-      let duration = 10; // 10 seconds
-      let startTime = audioContext.currentTime;
-
-      function triggerBeep(time) {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(850, time);
-        gain.gain.setValueAtTime(0.3, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.4);
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        osc.start(time);
-        osc.stop(time + 0.4);
-      }
-
-      for (let i = 0; i < duration * 2; i++) {
-        triggerBeep(startTime + (i * 0.5));
-      }
-    }
-
-    // --- UI HELPERS & SCHEDULE MATH ---
+    // --- UI HELPERS ---
     function updateScheduleHeader() {
       const d = new Date(tournamentStartTime);
       const dateStr = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
@@ -344,16 +317,13 @@
 
       defaultGroupMatches.forEach((baseMatch, idx) => {
         const matchId = baseMatch.id;
-        const match = matchesData[matchId] || { winner: null, scoreA: '', scoreB: '', status: 'idle', startedAt: null };
+        const match = matchesData[matchId] || { winner: null, scoreA: '', scoreB: '', status: 'idle' };
 
-        // Schedule Slot Calculations
-        const matchStartTime = tournamentStartTime + (idx * 10 * 60 * 1000); // 10 min blocks
-        const matchEndTime = matchStartTime + (8 * 60 * 1000); // 8 min match
+        const matchStartTime = tournamentStartTime + (idx * 10 * 60 * 1000);
+        const matchEndTime = matchStartTime + (8 * 60 * 1000);
 
         const startStr = new Date(matchStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const endStr = new Date(matchEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        const isFinished = match.status === 'completed' || match.winner !== undefined && match.winner !== null;
 
         const card = document.createElement('div');
         card.className = "bg-slate-800 rounded-xl border border-slate-700 p-3.5 shadow flex flex-col gap-3";
@@ -365,12 +335,10 @@
           </div>
 
           <div class="flex items-center justify-between gap-2">
-            <!-- Team A -->
             <div class="flex-1 text-center font-bold text-sm sm:text-base ${getTeamColorClass(baseMatch.teamA)}">
               ${baseMatch.teamA}
             </div>
 
-            <!-- VS / Score Inputs -->
             <div class="flex items-center gap-1">
               <input type="number" placeholder="0" min="0" value="${match.scoreA ?? ''}" 
                 onchange="updateScore(${matchId}, 'A', this.value)"
@@ -381,13 +349,11 @@
                 class="w-10 h-9 bg-slate-900 border border-slate-700 text-center text-amber-400 font-bold rounded-lg focus:outline-none focus:border-indigo-500">
             </div>
 
-            <!-- Team B -->
             <div class="flex-1 text-center font-bold text-sm sm:text-base ${getTeamColorClass(baseMatch.teamB)}">
               ${baseMatch.teamB}
             </div>
           </div>
 
-          <!-- Quick Outcome Selection & Timer Controls -->
           <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-700/40">
             <div class="flex items-center gap-1.5 text-xs">
               <button onclick="setWinner(${matchId}, '${baseMatch.teamA}')" 
@@ -404,7 +370,6 @@
               </button>
             </div>
 
-            <!-- Timer Button -->
             <div>
               ${renderTimerButton(matchId, match, matchEndTime)}
             </div>
@@ -419,14 +384,14 @@
       const now = Date.now();
 
       if (match.status === 'running') {
-        return `<button onclick="requestMatchReset(${matchId})" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 animate-pulse">
-          ⏱️ Running (Reset Need Approval)
+        return `<button onclick="createMatchResetRequest(${matchId})" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 animate-pulse">
+          ⏱️ Running (Request Reset)
         </button>`;
       }
 
       if (match.status === 'completed' || now > scheduledEndTime) {
-        return `<button onclick="requestMatchReset(${matchId})" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg font-semibold">
-          🔒 Finished (Restart Request)
+        return `<button onclick="createMatchResetRequest(${matchId})" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg font-semibold">
+          🔒 Finished (Request Restart)
         </button>`;
       }
 
@@ -445,7 +410,6 @@
       }
     }
 
-    // --- MATCH CONTROLS ---
     function setWinner(matchId, winner) {
       db.ref(`matches/${matchId}`).update({ winner: winner });
     }
@@ -464,98 +428,93 @@
       });
     }
 
-    // --- GOVERNANCE & APPROVAL SYSTEM ---
-    function requestMatchReset(matchId) {
-      activeApprovalAction = {
+    // --- REALTIME PUSH APPROVAL SYSTEM ---
+    function createMatchResetRequest(matchId) {
+      const approvals = {};
+      approvals[myDeviceId] = true; // Requestor automatically approves
+
+      db.ref('active_request').set({
         type: 'RESET_MATCH',
         matchId: matchId,
-        requiredApprovals: 2
-      };
-
-      document.getElementById('approval-title').innerText = '2-Person Match Reset Approval';
-      document.getElementById('approval-desc').innerText = 'Because this game is active or already passed its schedule, resetting requires verification from 2 separate officials.';
-      
-      const inputs = document.getElementById('approval-inputs');
-      inputs.innerHTML = `
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Official 1 Name/Initials</label>
-          <input type="text" id="appr-1" placeholder="Ref 1" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white focus:outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Official 2 Name/Initials</label>
-          <input type="text" id="appr-2" placeholder="Ref 2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white focus:outline-none">
-        </div>
-      `;
-
-      document.getElementById('approval-modal').classList.remove('hidden');
+        title: `Reset Match #${matchId}`,
+        desc: `A reset has been requested for Match #${matchId}. Needs 2 approvals.`,
+        requiredApprovals: 2,
+        approvals: approvals
+      });
     }
 
-    function promptFullReset() {
-      activeApprovalAction = {
+    function createWipeRequest() {
+      const approvals = {};
+      approvals[myDeviceId] = true;
+
+      db.ref('active_request').set({
         type: 'RESET_ALL',
-        requiredApprovals: 3
-      };
-
-      document.getElementById('approval-title').innerText = '3-Person Full Wipe Approval';
-      document.getElementById('approval-desc').innerText = 'Wiping all scores, match standings, and playoff results requires approval from 3 separate officials to prevent accidental data loss.';
-      
-      const inputs = document.getElementById('approval-inputs');
-      inputs.innerHTML = `
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Official 1 Name</label>
-          <input type="text" id="appr-1" placeholder="Ref 1" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white focus:outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Official 2 Name</label>
-          <input type="text" id="appr-2" placeholder="Ref 2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white focus:outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1">Official 3 Name</label>
-          <input type="text" id="appr-3" placeholder="Ref 3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white focus:outline-none">
-        </div>
-      `;
-
-      document.getElementById('approval-modal').classList.remove('hidden');
+        title: `Reset Entire Tournament`,
+        desc: `Wiping all matches and standings requires 3 approvals across phones.`,
+        requiredApprovals: 3,
+        approvals: approvals
+      });
     }
 
-    function submitApproval() {
-      const action = activeApprovalAction;
-      if (!action) return;
-
-      const val1 = document.getElementById('appr-1')?.value.trim();
-      const val2 = document.getElementById('appr-2')?.value.trim();
-      const val3 = document.getElementById('appr-3')?.value.trim();
-
-      if (action.requiredApprovals === 2 && (!val1 || !val2)) {
-        alert('Please enter names for both 2 approving officials.');
+    function renderApprovalBanner() {
+      const banner = document.getElementById('approval-banner');
+      if (!activeRequest) {
+        banner.classList.add('hidden');
         return;
       }
 
-      if (action.requiredApprovals === 3 && (!val1 || !val2 || !val3)) {
-        alert('Please enter names for all 3 approving officials.');
-        return;
+      const approvals = activeRequest.approvals || {};
+      const currentCount = Object.keys(approvals).length;
+      const required = activeRequest.requiredApprovals;
+
+      document.getElementById('banner-action-title').innerText = activeRequest.title;
+      document.getElementById('banner-action-desc').innerText = activeRequest.desc;
+      document.getElementById('approval-counter').innerText = `${currentCount} / ${required} Approvals`;
+
+      const approveBtn = document.getElementById('approve-action-btn');
+      if (approvals[myDeviceId]) {
+        approveBtn.innerText = '✔️ You Approved';
+        approveBtn.classList.add('opacity-50', 'pointer-events-none');
+      } else {
+        approveBtn.innerText = '👍 Approve';
+        approveBtn.classList.remove('opacity-50', 'pointer-events-none');
       }
 
-      // Action execution
-      if (action.type === 'RESET_MATCH') {
-        db.ref(`matches/${action.matchId}`).set({
+      banner.classList.remove('hidden');
+
+      // Check if threshold reached
+      if (currentCount >= required) {
+        executeActiveRequest();
+      }
+    }
+
+    function approveActiveRequest() {
+      if (!activeRequest) return;
+      db.ref(`active_request/approvals/${myDeviceId}`).set(true);
+    }
+
+    function cancelActiveRequest() {
+      db.ref('active_request').remove();
+    }
+
+    function executeActiveRequest() {
+      if (!activeRequest) return;
+
+      if (activeRequest.type === 'RESET_MATCH') {
+        db.ref(`matches/${activeRequest.matchId}`).set({
           status: 'idle',
           winner: null,
           scoreA: null,
           scoreB: null,
           startedAt: null
         });
-      } else if (action.type === 'RESET_ALL') {
+      } else if (activeRequest.type === 'RESET_ALL') {
         db.ref('matches').remove();
         db.ref('playoffs').remove();
       }
 
-      closeApprovalModal();
-    }
-
-    function closeApprovalModal() {
-      document.getElementById('approval-modal').classList.add('hidden');
-      activeApprovalAction = null;
+      // Clear the request after executing
+      db.ref('active_request').remove();
     }
 
     // --- SCHEDULE SETTING ---
@@ -629,7 +588,6 @@
         return b.GF - a.GF;
       });
 
-      // Render Standings
       const tbody = document.getElementById('standings-table-body');
       tbody.innerHTML = '';
 
@@ -649,13 +607,11 @@
         tbody.appendChild(tr);
       });
 
-      // Auto-Unlock Playoffs if 6 matches finished
       if (completedMatchesCount >= 6) {
         document.getElementById('playoff-badge').classList.remove('hidden');
         document.getElementById('playoff-lock-msg').classList.add('hidden');
         document.getElementById('playoff-container').classList.remove('hidden');
 
-        // Seed Playoffs in Firebase if not seeded
         if (!playoffData.seeded) {
           db.ref('playoffs').set({
             seeded: true,
@@ -700,7 +656,6 @@
         </div>
       `;
 
-      // Winner Banner & Confetti
       if (f.winner) {
         document.getElementById('champion-banner').classList.remove('hidden');
         document.getElementById('champion-team-name').innerText = f.winner;
@@ -712,7 +667,7 @@
       db.ref(`playoffs/${stage}`).update({ winner: team });
     }
 
-    // --- LIVE CLOCK SYNC LOOP ---
+    // Live clock loop
     setInterval(() => {
       const now = new Date();
       document.getElementById('live-clock-display').innerText = `Current Time: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
