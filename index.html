@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soccer Tournament Manager & Strict Schedule Timer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti Library for Champion Celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b1120;
+            color: #f8fafc;
+        }
+        
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        /* Team Badges & Accents */
+        .team-blue { background-color: #2563eb; color: #ffffff; }
+        .team-red { background-color: #dc2626; color: #ffffff; }
+        .team-white { background-color: #f8fafc; color: #0f172a; border: 1px solid #cbd5e1; }
+        .team-black { background-color: #1e293b; color: #f8fafc; border: 1px solid #475569; }
+
+        .team-text-blue { color: #60a5fa; }
+        .team-text-red { color: #f87171; }
+        .team-text-white { color: #f8fafc; }
+        .team-text-black { color: #94a3b8; }
+
+        .glow-gold {
+            box-shadow: 0 0 30px rgba(234, 179, 8, 0.45);
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .live-pulse {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+
+        @keyframes alarm-flash {
+            0%, 100% { background-color: #dc2626; }
+            50% { background-color: #991b1b; }
+        }
+        .alarm-active {
+            animation: alarm-flash 0.5s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- Alarm Indicator Banner (Shown when 10s completion alarm is sounding) -->
+    <div id="alarmBanner" class="hidden alarm-active text-white text-center py-2 px-4 font-black text-sm uppercase tracking-widest sticky top-0 z-50 flex items-center justify-center gap-3 shadow-2xl">
+        <span>🚨 MATCH TIMER ENDED! (ALARM PLAYING) 🚨</span>
+        <button onclick="stopAlarmSound()" class="px-3 py-0.5 bg-black/60 hover:bg-black/80 text-white text-xs font-bold rounded-full border border-white/40">
+            Mute Alarm
+        </button>
+    </div>
+
+    <!-- Top Header -->
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-md">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-blue-600 rounded-xl shadow-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                        Soccer Tournament Pro <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">Strict Schedule Sync</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">4 Teams • Start Saturday @ 7:00 PM • 8m games / 2m rest • Win = 2pts, Draw = 1pt</p>
+                </div>
+            </div>
+
+            <!-- Header Controls & Audio Status -->
+            <div class="flex items-center gap-2">
+                <!-- Enable Audio Toggle (Required for Browser Autoplay Policy) -->
+                <button id="audioToggleBtn" onclick="enableAudio()" class="px-3 py-1.5 text-xs font-bold text-amber-300 bg-amber-950/60 hover:bg-amber-900/80 border border-amber-700/60 rounded-lg transition flex items-center gap-1.5">
+                    <span id="audioIcon">🔔</span>
+                    <span id="audioStatusText">Enable Alarm Audio</span>
+                </button>
+
+                <button onclick="toggleHostingGuide()" class="px-3 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-700/60 rounded-lg transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/>
+                    </svg>
+                    Free Hosting Guide
+                </button>
+
+                <button onclick="confirmReset()" class="px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-red-400 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Reset Data
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- LIVE REAL-TIME CLOCK & SCHEDULE CONTROL BANNER -->
+    <section class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-800 py-3 px-4">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Real-Time Target Date / Clock -->
+            <div class="flex items-center gap-3">
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tournament Start Target</span>
+                    <div class="flex items-center gap-2">
+                        <input type="datetime-local" id="tournamentStartInput" onchange="updateStartDate(this.value)" class="bg-slate-950 border border-slate-700 text-xs font-semibold text-white rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div class="h-8 w-px bg-slate-700 hidden sm:block"></div>
+                <div class="hidden sm:flex flex-col">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Current Clock</span>
+                    <span id="currentSystemClock" class="text-xs font-mono text-slate-200">--:--:-- --</span>
+                </div>
+            </div>
+
+            <!-- Active Match Header Indicator -->
+            <div id="liveBanner" class="w-full md:w-auto bg-slate-950 border border-blue-500/40 rounded-xl px-4 py-2 flex items-center justify-between md:justify-end gap-4 shadow-inner">
+                <div class="flex items-center gap-2">
+                    <span id="liveIndicatorDot" class="w-3 h-3 rounded-full bg-blue-500"></span>
+                    <div class="flex flex-col">
+                        <span id="liveStatusTitle" class="text-xs font-extrabold text-blue-400 uppercase tracking-wider">SCHEDULE SYNC ACTIVE</span>
+                        <span id="liveStatusSub" class="text-[11px] text-slate-300">Click "Start Match" on any game to begin</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase">Timer</span>
+                    <span id="liveTimerDisplay" class="text-lg font-black font-mono text-emerald-400">00:00</span>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- FREE HOSTING GUIDE MODAL -->
+    <div id="hostingModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto relative">
+            <button onclick="toggleHostingGuide()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
+            
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🚀</span>
+                <h3 class="text-lg font-bold text-white">How to Host This Web App For Free</h3>
+            </div>
+            <p class="text-xs text-slate-300">Since this entire app is consolidated into a single HTML file, you can host it live for your players with zero setup cost using any of these services:</p>
+
+            <div class="space-y-3 text-xs">
+                <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
+                    <h4 class="font-bold text-emerald-400 text-sm">Option 1: GitHub Pages (Recommended)</h4>
+                    <ol class="list-decimal pl-4 text-slate-300 space-y-1">
+                        <li>Create a free account on <a href="https://github.com" target="_blank" class="text-blue-400 underline">GitHub.com</a>.</li>
+                        <li>Create a new public repository (e.g., <code class="bg-slate-900 px-1 py-0.5 rounded text-slate-200">soccer-tournament</code>).</li>
+                        <li>Upload this <code class="bg-slate-900 px-1 py-0.5 rounded text-slate-200">index.html</code> file directly to the repository.</li>
+                        <li>Go to <strong>Settings</strong> &gt; <strong>Pages</strong> &gt; set Branch to <code class="bg-slate-900 px-1 py-0.5 rounded text-slate-200">main</code> and save.</li>
+                        <li>Your live site will be ready at <code class="text-slate-400">https://yourusername.github.io/soccer-tournament</code>!</li>
+                    </ol>
+                </div>
+
+                <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
+                    <h4 class="font-bold text-blue-400 text-sm">Option 2: Netlify Drop (Instant Drag & Drop)</h4>
+                    <ol class="list-decimal pl-4 text-slate-300 space-y-1">
+                        <li>Visit <a href="https://app.netlify.com/drop" target="_blank" class="text-blue-400 underline">app.netlify.com/drop</a>.</li>
+                        <li>Drag and drop the folder containing your <code class="bg-slate-900 px-1 py-0.5 rounded text-slate-200">index.html</code> file into the browser box.</li>
+                        <li>You will instantly get a live public link to share with everyone!</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="pt-2 text-right">
+                <button onclick="toggleHostingGuide()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg text-xs">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="max-w-6xl mx-auto px-4 py-6 w-full flex-grow space-y-6">
+
+        <!-- Champion Banner (Shown when Championship finished) -->
+        <div id="championBanner" class="hidden bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border-2 border-yellow-500/60 rounded-2xl p-6 text-center glow-gold relative overflow-hidden">
+            <div class="relative z-10 flex flex-col items-center">
+                <span class="text-4xl mb-1">🏆</span>
+                <span class="text-xs font-bold tracking-widest text-yellow-400 uppercase">Tournament Champion</span>
+                <h2 id="championName" class="text-3xl font-black text-white my-1">TEAM NAME</h2>
+                <p class="text-xs text-slate-300">Winner of Saturday's Tournament!</p>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex border-b border-slate-800 text-sm font-medium">
+            <button id="tabBtnGroup" onclick="switchTab('group')" class="py-3 px-5 border-b-2 border-blue-500 text-blue-400 font-semibold flex items-center gap-2 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                </svg>
+                Group Stage & Schedule
+            </button>
+            <button id="tabBtnFinals" onclick="switchTab('finals')" class="py-3 px-5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition relative">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                </svg>
+                Playoffs & Finals
+                <span id="finalsBadge" class="hidden absolute top-2 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-ping"></span>
+            </button>
+        </div>
+
+        <!-- TAB 1: GROUP STAGE & STANDINGS -->
+        <div id="tabGroup" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Standings Table (5 cols on lg) -->
+            <div class="lg:col-span-5 space-y-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-base font-bold text-white flex items-center gap-2">
+                            <span>📊</span> Live Standings
+                        </h2>
+                        <span class="text-[11px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">Group Stage</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-[10px] font-bold text-slate-400 uppercase border-b border-slate-800">
+                                    <th class="pb-2 pl-1">Team</th>
+                                    <th class="pb-2 text-center">P</th>
+                                    <th class="pb-2 text-center">W</th>
+                                    <th class="pb-2 text-center">D</th>
+                                    <th class="pb-2 text-center">L</th>
+                                    <th class="pb-2 text-center">GD</th>
+                                    <th class="pb-2 text-right pr-1">PTS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="standingsBody" class="divide-y divide-slate-800/60 text-xs">
+                                <!-- Dynamic Standings Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Points Key -->
+                    <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between text-[11px] text-slate-400">
+                        <span>Win: <strong class="text-emerald-400">2 pts</strong></span>
+                        <span>Draw: <strong class="text-amber-400">1 pt</strong></span>
+                        <span>Loss: <strong class="text-rose-400">0 pts</strong></span>
+                    </div>
+                </div>
+
+                <!-- Schedule Logic Rule Card -->
+                <div class="bg-slate-900/70 border border-blue-500/30 rounded-xl p-4 text-xs text-slate-300 space-y-2">
+                    <div class="font-bold text-blue-400 flex items-center gap-1.5">
+                        <span>⏱️</span> Strict Schedule End Time Rules
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                        Each match has a fixed 8-minute window. When you click <strong>Start Match</strong>, the timer counts down to the <strong>exact scheduled end moment</strong>. If started late, remaining time is automatically adjusted!
+                    </p>
+                </div>
+            </div>
+
+            <!-- Matches Schedule List (7 cols on lg) -->
+            <div class="lg:col-span-7 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>🗓️</span> Group Schedule & Matches
+                    </h2>
+                    <span class="text-xs text-slate-400" id="groupProgressText">0 of 6 Completed</span>
+                </div>
+
+                <div id="groupMatchesList" class="space-y-3">
+                    <!-- Dynamic Match Cards generated here -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TAB 2: PLAYOFFS / FINALS -->
+        <div id="tabFinals" class="hidden space-y-6">
+
+            <!-- Lock Banner if Group Stage incomplete -->
+            <div id="finalsLockedState" class="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-3 max-w-xl mx-auto my-6">
+                <div class="w-12 h-12 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center mx-auto text-xl">
+                    🔒
+                </div>
+                <h3 class="text-lg font-bold text-white">Playoffs Locked</h3>
+                <p class="text-xs text-slate-400">
+                    Complete all 6 group stage matches to automatically unlock and populate the 3rd Place Match and Championship Final pairings!
+                </p>
+                <div class="pt-2">
+                    <button onclick="switchTab('group')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition">
+                        Complete Group Games
+                    </button>
+                </div>
+            </div>
+
+            <!-- Finals Container (Shown when unlocked) -->
+            <div id="finalsContainer" class="hidden space-y-6">
+                
+                <div class="bg-blue-950/40 border border-blue-500/30 rounded-xl p-4 flex items-center gap-3 text-xs text-blue-300">
+                    <span class="text-lg">✨</span>
+                    <div>
+                        <strong>Group Stage Complete!</strong> Standings are finalized. Use the timer buttons and score selectors to play out the final tournament matches.
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- 3rd Place Match -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                                <div>
+                                    <span id="match7TimeLabel" class="text-xs font-bold text-amber-500 uppercase tracking-wider">Match #7 • 8:03 PM</span>
+                                    <h3 class="text-base font-bold text-white">3rd Place Match</h3>
+                                </div>
+                                <span class="text-xs px-2.5 py-1 bg-slate-800 text-slate-300 rounded-md border border-slate-700">Consolation</span>
+                            </div>
+
+                            <p class="text-xs text-slate-400">Matchup: Group 3rd Place vs. Group 4th Place</p>
+
+                            <div id="match7Card">
+                                <!-- Match 7 UI -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Championship Match -->
+                    <div class="bg-slate-900 border border-amber-500/30 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                                <div>
+                                    <span id="match8TimeLabel" class="text-xs font-bold text-yellow-400 uppercase tracking-wider">Match #8 • 8:13 PM</span>
+                                    <h3 class="text-base font-bold text-white flex items-center gap-1.5">
+                                        Championship Final 🏆
+                                    </h3>
+                                </div>
+                                <span class="text-xs px-2.5 py-1 bg-yellow-500/20 text-yellow-300 rounded-md border border-yellow-500/30 font-semibold">Grand Final</span>
+                            </div>
+
+                            <p class="text-xs text-slate-400">Matchup: Group 1st Place vs. Group 2nd Place</p>
+
+                            <div id="match8Card">
+                                <!-- Match 8 UI -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-slate-950 py-4 text-center text-xs text-slate-500">
+        4-Team Soccer Tournament Manager • Live Web App
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Team Definition Data
+        const TEAMS = {
+            'Blue': { name: 'Blue', bg: 'team-blue', border: 'border-blue-500', text: 'team-text-blue', dot: 'bg-blue-600' },
+            'Red': { name: 'Red', bg: 'team-red', border: 'border-red-500', text: 'team-text-red', dot: 'bg-red-600' },
+            'White': { name: 'White', bg: 'team-white', border: 'border-slate-300', text: 'team-text-white', dot: 'bg-slate-200' },
+            'Black': { name: 'Black', bg: 'team-black', border: 'border-slate-600', text: 'team-text-black', dot: 'bg-slate-800' }
+        };
+
+        const MATCH_DURATION_MIN = 8;
+        const REST_DURATION_MIN = 2;
+
+        // Schedule Template
+        const DEFAULT_MATCHES = [
+            // Group Stage
+            { id: 1, offsetMin: 0, teamA: 'Blue', teamB: 'Red', scoreA: '', scoreB: '', winner: null, isGroup: true, started: false, finished: false, remainingSec: MATCH_DURATION_MIN * 60 },
+            { id: 2, offsetMin: 10, teamA: 'White', teamB: 'Black', scoreA: '', scoreB: '', winner: null, isGroup: true, started: false, finished: false, remainingSec: MATCH_DURATION_MIN * 60 },
+            { id: 3, offsetMin: 20, teamA: 'Blue', teamB: 'White', scoreA: '', scoreB: '', winner: null, isGroup: true, started: false, finished: false, remainingSec: MATCH_DURATION_MIN * 60 },
+            { id: 4, offsetMin: 30, teamA: 'Red', teamB: 'Black', scoreA: '', scoreB: '', winner: null, isGroup: true, started: false, finished: false, remainingSec: MATCH_DURATION_MIN * 60 },
+            { id: 5, offsetMin: 40, teamA: 'Blue', teamB: 'Black', scoreA: '', scoreB: '', winner: null, isGroup: true, started: false, finished: false, remainingSec: MATCH_DURATION_MIN * 60 },
+            { id: 6, offsetMin: 50, teamA: 'Red', teamB: 'White', scoreA: '', scoreB: '', winner: null, isGroup: true, started: false, finished: false, remainingSec: MATCH_DURATION_MIN * 60 },
+            
+            // Finals Stage (Starts after 5m group break)
+            { id: 7, offsetMin: 63, teamA: 'TBD (3rd)', teamB: 'TBD (4th)', scoreA: '', scoreB: '', winner: null, isGroup: false, title: '3rd Place Match', started: false, finished: false, remainingSec: MATCH_DURATION_MIN * 60 },
+            { id: 8, offsetMin: 73, teamA: 'TBD (1st)', teamB: 'TBD (2nd)', scoreA: '', scoreB: '', winner: null, isGroup: false, title: 'Championship Match', started: false, finished: false, remainingSec: MATCH_DURATION_MIN * 60 }
+        ];
+
+        // State Store
+        let matches = [];
+        let tournamentStartIso = "";
+        let audioContext = null;
+        let alarmActive = false;
+        let alarmInterval = null;
+
+        // Calculate default upcoming Saturday at 7:00 PM
+        function getDefaultSaturday7PM() {
+            const now = new Date();
+            const result = new Date(now);
+            result.setDate(now.getDate() + ((6 - now.getDay() + 7) % 7));
+            result.setHours(19, 0, 0, 0);
+            
+            if (now > result && now.getDay() === 6 && now.getHours() >= 20) {
+                result.setDate(result.getDate() + 7);
+            }
+            
+            const tzOffset = result.getTimezoneOffset() * 60000;
+            return (new Date(result.getTime() - tzOffset)).toISOString().slice(0, 16);
+        }
+
+        // Initialize App State
+        function initApp() {
+            const savedState = localStorage.getItem('soccer_tourney_strict_state_v1');
+            const savedStart = localStorage.getItem('soccer_tourney_start_iso_v1');
+
+            if (savedStart) {
+                tournamentStartIso = savedStart;
+            } else {
+                tournamentStartIso = getDefaultSaturday7PM();
+            }
+
+            document.getElementById('tournamentStartInput').value = tournamentStartIso;
+
+            if (savedState) {
+                try {
+                    matches = JSON.parse(savedState);
+                } catch(e) {
+                    matches = JSON.parse(JSON.stringify(DEFAULT_MATCHES));
+                }
+            } else {
+                matches = JSON.parse(JSON.stringify(DEFAULT_MATCHES));
+            }
+
+            // Main 1-second interval loop
+            setInterval(tickClock, 1000);
+            tickClock();
+
+            renderAll();
+        }
+
+        function saveState() {
+            localStorage.setItem('soccer_tourney_strict_state_v1', JSON.stringify(matches));
+            localStorage.setItem('soccer_tourney_start_iso_v1', tournamentStartIso);
+        }
+
+        function updateStartDate(val) {
+            if (!val) return;
+            tournamentStartIso = val;
+            saveState();
+            renderAll();
+            tickClock();
+        }
+
+        function formatTime12h(dateObj) {
+            return dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        }
+
+        // Exact Match Schedule Times
+        function getMatchStartTime(offsetMin) {
+            const startDate = new Date(tournamentStartIso);
+            return new Date(startDate.getTime() + offsetMin * 60000);
+        }
+
+        function getMatchEndTime(offsetMin) {
+            const startDate = new Date(tournamentStartIso);
+            return new Date(startDate.getTime() + (offsetMin + MATCH_DURATION_MIN) * 60000);
+        }
+
+        // Web Audio API Synthesized Alarm Sound (Horn)
+        function enableAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            document.getElementById('audioStatusText').innerText = "Alarm Audio Enabled";
+            document.getElementById('audioIcon').innerText = "🔊";
+            document.getElementById('audioToggleBtn').className = "px-3 py-1.5 text-xs font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-700/60 rounded-lg flex items-center gap-1.5";
+        }
+
+        function playHornBeep() {
+            if (!audioContext) return;
+            try {
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                osc1.type = 'sawtooth';
+                osc2.type = 'square';
+                
+                // Frequency for stadium horn
+                osc1.frequency.value = 220; 
+                osc2.frequency.value = 440; 
+
+                gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioContext.destination);
+
+                osc1.start();
+                osc2.start();
+                osc1.stop(audioContext.currentTime + 0.8);
+                osc2.stop(audioContext.currentTime + 0.8);
+            } catch(e) {
+                console.error("Audio playback error:", e);
+            }
+        }
+
+        function triggerCompletionAlarm() {
+            enableAudio();
+            document.getElementById('alarmBanner').classList.remove('hidden');
+            alarmActive = true;
+
+            let count = 0;
+            playHornBeep();
+
+            if (alarmInterval) clearInterval(alarmInterval);
+
+            // Repeat alarm beeps for 10 seconds (every 1 second)
+            alarmInterval = setInterval(() => {
+                count++;
+                if (count >= 10) {
+                    stopAlarmSound();
+                } else {
+                    playHornBeep();
+                }
+            }, 1000);
+        }
+
+        function stopAlarmSound() {
+            if (alarmInterval) clearInterval(alarmInterval);
+            document.getElementById('alarmBanner').classList.add('hidden');
+            alarmActive = false;
+        }
+
+        // Start Match Button Clicked
+        function startMatch(matchId) {
+            enableAudio();
+            const match = matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            match.started = true;
+            match.finished = false;
+
+            // Recalculate remaining time against strict scheduled end moment
+            const now = new Date();
+            const scheduledEnd = getMatchEndTime(match.offsetMin);
+            const diffSec = Math.floor((scheduledEnd - now) / 1000);
+
+            // If started early or on time, cap to 8 mins (480s). If late, use calculated remaining seconds.
+            match.remainingSec = Math.min(MATCH_DURATION_MIN * 60, Math.max(0, diffSec));
+
+            saveState();
+            renderAll();
+            tickClock();
+        }
+
+        // Reset individual match timer
+        function resetMatchTimer(matchId) {
+            const match = matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            match.started = false;
+            match.finished = false;
+            match.remainingSec = MATCH_DURATION_MIN * 60;
+
+            saveState();
+            renderAll();
+        }
+
+        // Core 1-Second Timer Tick Loop
+        function tickClock() {
+            const now = new Date();
+            document.getElementById('currentSystemClock').innerText = now.toLocaleTimeString();
+
+            let activeMatch = null;
+
+            matches.forEach(m => {
+                if (m.started && !m.finished) {
+                    activeMatch = m;
+                    const scheduledEnd = getMatchEndTime(m.offsetMin);
+                    const diffSec = Math.floor((scheduledEnd - now) / 1000);
+
+                    // Strictly sync remaining time to scheduled end time
+                    if (diffSec <= 0) {
+                        m.remainingSec = 0;
+                        m.finished = true;
+                        m.started = false;
+                        saveState();
+                        triggerCompletionAlarm();
+                        renderAll();
+                    } else {
+                        m.remainingSec = Math.min(MATCH_DURATION_MIN * 60, diffSec);
+                    }
+                }
+            });
+
+            // Update Header Display
+            const titleEl = document.getElementById('liveStatusTitle');
+            const subEl = document.getElementById('liveStatusSub');
+            const timerEl = document.getElementById('liveTimerDisplay');
+            const dotEl = document.getElementById('liveIndicatorDot');
+
+            if (activeMatch) {
+                titleEl.innerText = `MATCH #${activeMatch.id} IN PROGRESS`;
+                titleEl.className = "text-xs font-extrabold text-emerald-400 uppercase tracking-wider";
+                subEl.innerText = `${activeMatch.teamA} vs ${activeMatch.teamB}`;
+                timerEl.innerText = formatMmSs(activeMatch.remainingSec);
+                dotEl.className = "w-3 h-3 rounded-full bg-emerald-500 live-pulse";
+                
+                // Live update match card timer in DOM without full re-render
+                const cardTimer = document.getElementById(`matchTimerDisplay_${activeMatch.id}`);
+                if (cardTimer) cardTimer.innerText = formatMmSs(activeMatch.remainingSec);
+            } else {
+                titleEl.innerText = "SCHEDULE SYNC READY";
+                titleEl.className = "text-xs font-extrabold text-blue-400 uppercase tracking-wider";
+                subEl.innerText = "Select 'Start Match' to begin countdown";
+                timerEl.innerText = "00:00";
+                dotEl.className = "w-3 h-3 rounded-full bg-blue-500";
+            }
+        }
+
+        function formatMmSs(seconds) {
+            const m = Math.floor(Math.max(0, seconds) / 60);
+            const s = Math.floor(Math.max(0, seconds) % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // Switch Navigation Tabs
+        function switchTab(tab) {
+            const groupTab = document.getElementById('tabGroup');
+            const finalsTab = document.getElementById('tabFinals');
+
+            const btnGroup = document.getElementById('tabBtnGroup');
+            const btnFinals = document.getElementById('tabBtnFinals');
+
+            groupTab.classList.add('hidden');
+            finalsTab.classList.add('hidden');
+
+            btnGroup.className = "py-3 px-5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
+            btnFinals.className = "py-3 px-5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition relative";
+
+            if (tab === 'group') {
+                groupTab.classList.remove('hidden');
+                btnGroup.className = "py-3 px-5 border-b-2 border-blue-500 text-blue-400 font-semibold flex items-center gap-2 transition";
+            } else if (tab === 'finals') {
+                finalsTab.classList.remove('hidden');
+                btnFinals.className = "py-3 px-5 border-b-2 border-blue-500 text-blue-400 font-semibold flex items-center gap-2 transition relative";
+            }
+        }
+
+        // Calculate Standings Table (2 pts Win, 1 pt Draw)
+        function calculateStandings() {
+            const stats = {
+                'Blue': { name: 'Blue', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, PTS: 0 },
+                'Red': { name: 'Red', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, PTS: 0 },
+                'White': { name: 'White', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, PTS: 0 },
+                'Black': { name: 'Black', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, PTS: 0 }
+            };
+
+            matches.filter(m => m.isGroup && m.winner !== null).forEach(m => {
+                const teamA = m.teamA;
+                const teamB = m.teamB;
+
+                if (stats[teamA] && stats[teamB]) {
+                    stats[teamA].P += 1;
+                    stats[teamB].P += 1;
+
+                    const scoreA = parseInt(m.scoreA);
+                    const scoreB = parseInt(m.scoreB);
+                    if (!isNaN(scoreA) && !isNaN(scoreB)) {
+                        stats[teamA].GF += scoreA;
+                        stats[teamA].GA += scoreB;
+                        stats[teamB].GF += scoreB;
+                        stats[teamB].GA += scoreA;
+                    }
+
+                    if (m.winner === 'draw') {
+                        stats[teamA].D += 1;
+                        stats[teamB].D += 1;
+                        stats[teamA].PTS += 1;
+                        stats[teamB].PTS += 1;
+                    } else if (m.winner === teamA) {
+                        stats[teamA].W += 1;
+                        stats[teamA].PTS += 2;
+                        stats[teamB].L += 1;
+                    } else if (m.winner === teamB) {
+                        stats[teamB].W += 1;
+                        stats[teamB].PTS += 2;
+                        stats[teamA].L += 1;
+                    }
+                }
+            });
+
+            Object.values(stats).forEach(s => {
+                s.GD = s.GF - s.GA;
+            });
+
+            return Object.values(stats).sort((a, b) => {
+                if (b.PTS !== a.PTS) return b.PTS - a.PTS;
+                if (b.GD !== a.GD) return b.GD - a.GD;
+                if (b.W !== a.W) return b.W - a.W;
+                return a.name.localeCompare(b.name);
+            });
+        }
+
+        function renderStandings(standings) {
+            const tbody = document.getElementById('standingsBody');
+            tbody.innerHTML = '';
+
+            standings.forEach((team, index) => {
+                const teamInfo = TEAMS[team.name];
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-800/40 transition';
+
+                row.innerHTML = `
+                    <td class="py-2.5 pl-1 flex items-center gap-2 font-medium">
+                        <span class="text-[10px] text-slate-500 w-3">${index + 1}.</span>
+                        <span class="inline-block w-2.5 h-2.5 rounded-full ${teamInfo.dot}"></span>
+                        <span class="text-slate-200 font-bold">${team.name}</span>
+                    </td>
+                    <td class="py-2.5 text-center text-slate-400">${team.P}</td>
+                    <td class="py-2.5 text-center text-emerald-400 font-semibold">${team.W}</td>
+                    <td class="py-2.5 text-center text-amber-400 font-semibold">${team.D}</td>
+                    <td class="py-2.5 text-center text-rose-400 font-semibold">${team.L}</td>
+                    <td class="py-2.5 text-center text-slate-400 font-mono">${team.GD > 0 ? '+' + team.GD : team.GD}</td>
+                    <td class="py-2.5 text-right pr-1 font-black text-blue-400 text-sm">${team.PTS}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateMatchScore(matchId, scoreA, scoreB) {
+            const match = matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            match.scoreA = scoreA;
+            match.scoreB = scoreB;
+
+            const valA = parseInt(scoreA);
+            const valB = parseInt(scoreB);
+
+            if (!isNaN(valA) && !isNaN(valB)) {
+                if (valA > valB) match.winner = match.teamA;
+                else if (valB > valA) match.winner = match.teamB;
+                else match.winner = 'draw';
+            }
+
+            saveState();
+            renderAll();
+        }
+
+        function setMatchOutcome(matchId, outcome) {
+            const match = matches.find(m => m.id === matchId);
+            if (!match) return;
+
+            if (outcome === 'A') match.winner = match.teamA;
+            else if (outcome === 'B') match.winner = match.teamB;
+            else if (outcome === 'draw') match.winner = 'draw';
+            else if (outcome === 'reset') {
+                match.winner = null;
+                match.scoreA = '';
+                match.scoreB = '';
+            }
+
+            saveState();
+            renderAll();
+        }
+
+        // Render Group Stage Schedule
+        function renderGroupMatches() {
+            const container = document.getElementById('groupMatchesList');
+            container.innerHTML = '';
+
+            const groupMatches = matches.filter(m => m.isGroup);
+            const completedCount = groupMatches.filter(m => m.winner !== null).length;
+            
+            document.getElementById('groupProgressText').innerText = `${completedCount} of 6 Completed`;
+
+            groupMatches.forEach((m) => {
+                const teamA = TEAMS[m.teamA];
+                const teamB = TEAMS[m.teamB];
+                const startTime = getMatchStartTime(m.offsetMin);
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-900 border ${m.started ? 'border-emerald-500/80' : (m.finished ? 'border-slate-700/60' : 'border-slate-800')} rounded-2xl p-4 shadow-md transition flex flex-col gap-3`;
+
+                const isTeamAWinner = m.winner === m.teamA;
+                const isTeamBWinner = m.winner === m.teamB;
+                const isDraw = m.winner === 'draw';
+
+                card.innerHTML = `
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                                Match #${m.id} • Scheduled ${formatTime12h(startTime)}
+                            </span>
+                            
+                            ${m.started ? `
+                                <span class="text-[10px] font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 live-pulse"></span> IN PROGRESS
+                                </span>
+                            ` : (m.finished ? `
+                                <span class="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
+                                    FINISHED
+                                </span>
+                            ` : `
+                                <span class="text-[10px] font-bold text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                                    NOT STARTED
+                                </span>
+                            `)}
+                        </div>
+
+                        <!-- Match Clock / Timer Controls -->
+                        <div class="flex items-center gap-2">
+                            <div class="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 flex items-center gap-1.5">
+                                <span class="text-[10px] text-slate-500 font-bold uppercase">Timer</span>
+                                <span id="matchTimerDisplay_${m.id}" class="text-sm font-mono font-bold ${m.started ? 'text-emerald-400' : 'text-slate-300'}">
+                                    ${formatMmSs(m.remainingSec)}
+                                </span>
+                            </div>
+
+                            ${!m.started && !m.finished ? `
+                                <button onclick="startMatch(${m.id})" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1">
+                                    <span>▶</span> Start Match
+                                </button>
+                            ` : `
+                                <button onclick="resetMatchTimer(${m.id})" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-[11px] font-bold rounded-lg border border-slate-700 transition">
+                                    ↺ Reset Clock
+                                </button>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Match Teams & Outcome Selector -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                        <div class="flex items-center gap-2 text-xs font-bold">
+                            <span class="px-3 py-1 rounded ${teamA.bg} shadow-sm">
+                                ${teamA.name}
+                            </span>
+                            
+                            <span class="text-[10px] text-slate-500 font-normal">vs</span>
+
+                            <span class="px-3 py-1 rounded ${teamB.bg} shadow-sm">
+                                ${teamB.name}
+                            </span>
+                        </div>
+
+                        <!-- Goals Input & Winner Selection -->
+                        <div class="flex items-center gap-2 self-end sm:self-center">
+                            <div class="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
+                                <input type="number" min="0" placeholder="0" value="${m.scoreA}" 
+                                    onchange="updateMatchScore(${m.id}, this.value, '${m.scoreB}')"
+                                    class="w-8 text-center bg-slate-900 border border-slate-700 rounded text-xs font-bold text-white focus:outline-none focus:border-blue-500">
+                                <span class="text-xs text-slate-500">:</span>
+                                <input type="number" min="0" placeholder="0" value="${m.scoreB}" 
+                                    onchange="updateMatchScore(${m.id}, '${m.scoreA}', this.value)"
+                                    class="w-8 text-center bg-slate-900 border border-slate-700 rounded text-xs font-bold text-white focus:outline-none focus:border-blue-500">
+                            </div>
+
+                            <div class="flex items-center gap-1">
+                                <button onclick="setMatchOutcome(${m.id}, 'A')" 
+                                    class="px-2.5 py-1 text-[11px] font-semibold rounded border transition ${isTeamAWinner ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                                    ${m.teamA} Win
+                                </button>
+
+                                <button onclick="setMatchOutcome(${m.id}, 'draw')" 
+                                    class="px-2.5 py-1 text-[11px] font-semibold rounded border transition ${isDraw ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                                    Draw
+                                </button>
+
+                                <button onclick="setMatchOutcome(${m.id}, 'B')" 
+                                    class="px-2.5 py-1 text-[11px] font-semibold rounded border transition ${isTeamBWinner ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                                    ${m.teamB} Win
+                                </button>
+
+                                ${m.winner !== null ? `
+                                    <button onclick="setMatchOutcome(${m.id}, 'reset')" title="Clear Result" class="p-1 text-slate-500 hover:text-red-400">
+                                        ✕
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // Render Playoffs Tab
+        function renderFinals(standings) {
+            const groupMatches = matches.filter(m => m.isGroup);
+            const isGroupComplete = groupMatches.every(m => m.winner !== null);
+
+            const lockedState = document.getElementById('finalsLockedState');
+            const finalsContainer = document.getElementById('finalsContainer');
+            const badge = document.getElementById('finalsBadge');
+
+            if (!isGroupComplete) {
+                lockedState.classList.remove('hidden');
+                finalsContainer.classList.add('hidden');
+                badge.classList.add('hidden');
+
+                matches[6].teamA = 'TBD (3rd)';
+                matches[6].teamB = 'TBD (4th)';
+                matches[7].teamA = 'TBD (1st)';
+                matches[7].teamB = 'TBD (2nd)';
+                return;
+            }
+
+            lockedState.classList.add('hidden');
+            finalsContainer.classList.remove('hidden');
+            badge.classList.remove('hidden');
+
+            matches[6].teamA = standings[2].name; // 3rd Place
+            matches[6].teamB = standings[3].name; // 4th Place
+
+            matches[7].teamA = standings[0].name; // 1st Place
+            matches[7].teamB = standings[1].name; // 2nd Place
+
+            document.getElementById('match7TimeLabel').innerText = `Match #7 • ${formatTime12h(getMatchStartTime(matches[6].offsetMin))}`;
+            document.getElementById('match8TimeLabel').innerText = `Match #8 • ${formatTime12h(getMatchStartTime(matches[7].offsetMin))}`;
+
+            renderPlayoffCard(7, 'match7Card');
+            renderPlayoffCard(8, 'match8Card');
+
+            const champMatch = matches.find(m => m.id === 8);
+            const champBanner = document.getElementById('championBanner');
+            const champName = document.getElementById('championName');
+
+            if (champMatch && champMatch.winner && champMatch.winner !== 'draw') {
+                champBanner.classList.remove('hidden');
+                champName.innerText = `TEAM ${champMatch.winner.toUpperCase()}`;
+                
+                if (!window.celebrated) {
+                    triggerConfetti();
+                    window.celebrated = true;
+                }
+            } else {
+                champBanner.classList.add('hidden');
+                window.celebrated = false;
+            }
+        }
+
+        function renderPlayoffCard(matchId, containerId) {
+            const container = document.getElementById(containerId);
+            const m = matches.find(item => item.id === matchId);
+            if (!m || !container) return;
+
+            const teamA = TEAMS[m.teamA] || { name: m.teamA, bg: 'bg-slate-800 text-slate-300' };
+            const teamB = TEAMS[m.teamB] || { name: m.teamB, bg: 'bg-slate-800 text-slate-300' };
+
+            const isTeamAWinner = m.winner === m.teamA;
+            const isTeamBWinner = m.winner === m.teamB;
+            const isDraw = m.winner === 'draw';
+
+            container.innerHTML = `
+                <div class="space-y-4 pt-1">
+                    <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                        <span class="text-xs text-slate-400 font-bold">Match Timer:</span>
+                        <div class="flex items-center gap-2">
+                            <span id="matchTimerDisplay_${m.id}" class="text-sm font-mono font-bold text-emerald-400">
+                                ${formatMmSs(m.remainingSec)}
+                            </span>
+                            ${!m.started && !m.finished ? `
+                                <button onclick="startMatch(${m.id})" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition">
+                                    ▶ Start
+                                </button>
+                            ` : `
+                                <button onclick="resetMatchTimer(${m.id})" class="px-2 py-0.5 bg-slate-800 text-slate-400 hover:text-white text-[10px] font-bold rounded border border-slate-700">
+                                    ↺ Reset
+                                </button>
+                            `}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <div class="flex flex-col items-center gap-1.5 flex-1">
+                            <span class="px-3 py-1 rounded ${teamA.bg} text-xs font-black shadow-sm">
+                                ${teamA.name}
+                            </span>
+                            ${isTeamAWinner ? '<span class="text-[10px] text-yellow-400 font-bold">👑 Winner</span>' : ''}
+                        </div>
+
+                        <div class="flex items-center gap-1 bg-slate-900 px-2 py-1 rounded border border-slate-700">
+                            <input type="number" min="0" placeholder="0" value="${m.scoreA}" 
+                                onchange="updateMatchScore(${m.id}, this.value, '${m.scoreB}')"
+                                class="w-7 text-center bg-slate-950 border border-slate-700 rounded text-xs font-bold text-white focus:outline-none">
+                            <span class="text-xs text-slate-500">:</span>
+                            <input type="number" min="0" placeholder="0" value="${m.scoreB}" 
+                                onchange="updateMatchScore(${m.id}, '${m.scoreA}', this.value)"
+                                class="w-7 text-center bg-slate-950 border border-slate-700 rounded text-xs font-bold text-white focus:outline-none">
+                        </div>
+
+                        <div class="flex flex-col items-center gap-1.5 flex-1">
+                            <span class="px-3 py-1 rounded ${teamB.bg} text-xs font-black shadow-sm">
+                                ${teamB.name}
+                            </span>
+                            ${isTeamBWinner ? '<span class="text-[10px] text-yellow-400 font-bold">👑 Winner</span>' : ''}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-center gap-1.5">
+                        <button onclick="setMatchOutcome(${m.id}, 'A')" 
+                            class="flex-1 py-1.5 text-xs font-bold rounded border transition ${isTeamAWinner ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                            ${m.teamA} Win
+                        </button>
+
+                        <button onclick="setMatchOutcome(${m.id}, 'draw')" 
+                            class="px-3 py-1.5 text-xs font-bold rounded border transition ${isDraw ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                            Draw
+                        </button>
+
+                        <button onclick="setMatchOutcome(${m.id}, 'B')" 
+                            class="flex-1 py-1.5 text-xs font-bold rounded border transition ${isTeamBWinner ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                            ${m.teamB} Win
+                        </button>
+
+                        ${m.winner !== null ? `
+                            <button onclick="setMatchOutcome(${m.id}, 'reset')" title="Reset" class="p-1.5 text-slate-500 hover:text-red-400 bg-slate-800 rounded border border-slate-700">
+                                ↺
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+
+        function toggleHostingGuide() {
+            const modal = document.getElementById('hostingModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function confirmReset() {
+            if (confirm("Reset all match scores, timers, and tournament progress?")) {
+                matches = JSON.parse(JSON.stringify(DEFAULT_MATCHES));
+                saveState();
+                window.celebrated = false;
+                stopAlarmSound();
+                renderAll();
+            }
+        }
+
+        function renderAll() {
+            const standings = calculateStandings();
+            renderStandings(standings);
+            renderGroupMatches();
+            renderFinals(standings);
+        }
+
+        // Window Load Handler
+        window.onload = function() {
+            initApp();
+        };
+    </script>
+</body>
+</html>
