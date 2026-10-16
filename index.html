@@ -683,11 +683,16 @@
       const val = document.getElementById('tournament-datetime-input').value;
       if (!val) return;
       const ts = new Date(val).getTime();
+      
+      // Save to Firebase with explicit error catcher
       db.ref('tournament_config').set({
         startTime: ts,
         scheduleLocked: true
+      }).then(() => {
+        closeScheduleModal();
+      }).catch(error => {
+        alert("Failed to save schedule. Firebase Permission Error: " + error.message + "\n\n(Make sure your Realtime Database rules are set to .read: true, .write: true)");
       });
-      closeScheduleModal();
     }
 
     function calculateStandings() {
