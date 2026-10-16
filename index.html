@@ -120,7 +120,7 @@
       <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow">
         <h2 class="text-lg font-bold text-white mb-3 flex items-center justify-between">
           <span>Live Group Standings</span>
-          <span class="text-xs font-normal text-amber-400">Top 2 to Finals • 3rd/4th to 3rd Place Match</span>
+          <span class="text-xs font-normal text-amber-400">Top 2 to Championship • 3rd/4th to 3rd Place Match</span>
         </h2>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
@@ -144,6 +144,18 @@
       </div>
     </section>
   </main>
+
+  <!-- MODAL: AUDIO REMINDER POPUP (Every 2 Minutes until enabled) -->
+  <div id="audio-reminder-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-amber-500/50 rounded-2xl p-6 max-w-sm w-full space-y-4 text-slate-100 text-center shadow-2xl animate-bounce">
+      <span class="text-4xl">🔔</span>
+      <h3 class="text-lg font-bold text-white">Enable Audio Required</h3>
+      <p class="text-xs text-slate-300">You must enable audio to hear the 10-second buzzer alarm when match timers expire!</p>
+      <button onclick="enableAudioFromModal()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-xl text-sm shadow transition">
+        Enable Audio Now
+      </button>
+    </div>
+  </div>
 
   <!-- MODAL: PASSCODE UNLOCK -->
   <div id="passcode-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
@@ -226,10 +238,13 @@
     let activeRequest = null;
     let pendingAction = null;
     let audioContext = null;
+    let audioEnabled = false;
+    let audioPopupInterval = null;
     let triggeredAlarms = {};
     let currentSortedTeams = [];
 
     updateScheduleHeader();
+    startAudioReminderTimer();
 
     // FIREBASE LISTENERS
     db.ref('tournament_config').on('value', snapshot => {
@@ -265,9 +280,28 @@
       if (audioContext.state === 'suspended') {
         audioContext.resume();
       }
+      audioEnabled = true;
+      clearInterval(audioPopupInterval);
+      document.getElementById('audio-reminder-modal').classList.add('hidden');
       document.getElementById('audio-icon').innerText = '🔔';
       document.getElementById('audio-text').innerText = 'Audio Ready';
       document.getElementById('enable-audio-btn').classList.replace('bg-amber-600', 'bg-emerald-600');
+    }
+
+    function enableAudioFromModal() {
+      enableAudio();
+    }
+
+    function startAudioReminderTimer() {
+      // Pop up immediately if audio not enabled, then repeat every 2 minutes (120,000 ms)
+      if (!audioEnabled) {
+        document.getElementById('audio-reminder-modal').classList.remove('hidden');
+      }
+      audioPopupInterval = setInterval(() => {
+        if (!audioEnabled) {
+          document.getElementById('audio-reminder-modal').classList.remove('hidden');
+        }
+      }, 120000);
     }
 
     function play10SecondRefereeAlarm() {
@@ -358,6 +392,13 @@
         const isMatchFinished = match.status === 'completed' || (tournamentStartTime && now >= matchEndTime);
         const isOutcomeLocked = match.resultApproved;
 
+        let isPreviousFinished = true;
+        if (idx > 0) {
+          const prevMatch = matchesData[allTournamentMatches[idx - 1].id];
+          const prevFinished = prevMatch && (prevMatch.status === 'completed' || prevMatch.resultApproved);
+          isPreviousFinished = prevFinished;
+        }
+
         const card = document.createElement('div');
         card.className = "bg-slate-800 rounded-xl border border-slate-700 p-3.5 shadow flex flex-col gap-3";
 
@@ -411,7 +452,7 @@
             </div>
 
             <div>
-              ${renderTimerButton(matchId, match, matchStartTime, matchEndTime)}
+              ${renderTimerButton(matchId, match, matchStartTime, matchEndTime, isPreviousFinished)}
             </div>
           </div>
         `;
@@ -420,16 +461,16 @@
       });
     }
 
-    function renderTimerButton(matchId, match, scheduledStartTime, scheduledEndTime) {
+    function renderTimerButton(matchId, match, scheduledStartTime, scheduledEndTime, isPreviousFinished) {
       if (!tournamentStartTime) {
         return `<span class="text-xs text-slate-500 font-semibold px-2 py-1 bg-slate-900 rounded border border-slate-800">Set Schedule First</span>`;
       }
 
-      const now = Date.now();
-
-      if (now < scheduledStartTime && match.status !== 'running') {
-        return `<span class="text-xs text-slate-500 font-semibold px-2 py-1 bg-slate-900 rounded border border-slate-800">⏳ Unlocks at ${new Date(scheduledStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+      if (!isPreviousFinished && match.status !== 'running' && match.status !== 'completed') {
+        return `<span class="text-xs text-slate-500 font-semibold px-2 py-1 bg-slate-900 rounded border border-slate-800">🔒 Waiting for prev match</span>`;
       }
+
+      const now = Date.now();
 
       if (match.status === 'running' && now < scheduledEndTime) {
         const remainingSec = Math.max(0, Math.floor((scheduledEndTime - now) / 1000));
@@ -684,14 +725,13 @@
       if (!val) return;
       const ts = new Date(val).getTime();
       
-      // Save to Firebase with explicit error catcher
       db.ref('tournament_config').set({
         startTime: ts,
         scheduleLocked: true
       }).then(() => {
         closeScheduleModal();
       }).catch(error => {
-        alert("Failed to save schedule. Firebase Permission Error: " + error.message + "\n\n(Make sure your Realtime Database rules are set to .read: true, .write: true)");
+        alert("Failed to save schedule. Firebase Permission Error: " + error.message);
       });
     }
 
