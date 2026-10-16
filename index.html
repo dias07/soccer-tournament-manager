@@ -106,7 +106,7 @@
     <!-- TAB 1: SCHEDULE & MATCH TIMERS -->
     <section id="tab-schedule" class="tab-content space-y-4">
       <div class="flex justify-between items-center text-sm text-slate-300 px-1">
-        <h2 class="font-bold text-white text-base">All Tournament Matches (Group & Finals)</h2>
+        <h2 class="font-bold text-white text-base">All Tournament Matches (10 Group + 2 Finals)</h2>
         <span class="text-xs text-slate-400">Win = 2 pts | Draw = 1 pt</span>
       </div>
 
@@ -220,6 +220,7 @@
 
     const myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
 
+    // Exactly 10 Group Matches + 2 Finals = 12 Total Matches (Fits within 2 hours at 10m per match block)
     const allTournamentMatches = [
       { id: 1, type: 'group', teamA: "Blue", teamB: "Red" },
       { id: 2, type: 'group', teamA: "White", teamB: "Black" },
@@ -227,8 +228,12 @@
       { id: 4, type: 'group', teamA: "Red", teamB: "Black" },
       { id: 5, type: 'group', teamA: "Blue", teamB: "Black" },
       { id: 6, type: 'group', teamA: "Red", teamB: "White" },
-      { id: 7, type: 'third', teamA: "3rd Place", teamB: "4th Place" },
-      { id: 8, type: 'final', teamA: "1st Place", teamB: "2nd Place" }
+      { id: 7, type: 'group', teamA: "Blue", teamB: "Red" },
+      { id: 8, type: 'group', teamA: "White", teamB: "Black" },
+      { id: 9, type: 'group', teamA: "Blue", teamB: "White" },
+      { id: 10, type: 'group', teamA: "Red", teamB: "Black" },
+      { id: 11, type: 'third', teamA: "3rd Place", teamB: "4th Place" },
+      { id: 12, type: 'final', teamA: "1st Place", teamB: "2nd Place" }
     ];
 
     let tournamentStartTime = null;
@@ -369,8 +374,8 @@
         let teamAName = baseMatch.teamA;
         let teamBName = baseMatch.teamB;
 
-        if (matchId === 7) { teamAName = t3; teamBName = t4; }
-        if (matchId === 8) { teamAName = t1; teamBName = t2; }
+        if (matchId === 11) { teamAName = t3; teamBName = t4; }
+        if (matchId === 12) { teamAName = t1; teamBName = t2; }
 
         let startStr = '--:--', endStr = '--:--';
         let matchStartTime = 0, matchEndTime = 0;
@@ -401,7 +406,7 @@
         const card = document.createElement('div');
         card.className = "bg-slate-800 rounded-xl border border-slate-700 p-3.5 shadow flex flex-col gap-3";
 
-        let labelBadge = matchId <= 6 ? `Group Match #${matchId}` : matchId === 7 ? `🥉 3rd Place Match` : `🥇 Championship`;
+        let labelBadge = matchId <= 10 ? `Group Match #${matchId}` : matchId === 11 ? `🥉 3rd Place Match` : `🥇 Championship`;
 
         card.innerHTML = `
           <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-700/60 pb-2">
@@ -742,7 +747,7 @@
         Black: { name: 'Black', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 }
       };
 
-      allTournamentMatches.slice(0, 6).forEach(baseMatch => {
+      allTournamentMatches.slice(0, 10).forEach(baseMatch => {
         const m = matchesData[baseMatch.id];
         if (!m || !m.resultApproved) return;
 
