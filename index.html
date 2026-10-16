@@ -37,7 +37,7 @@
         <span class="text-2xl">⚽</span>
         <div>
           <h1 class="text-lg font-bold text-white tracking-wide leading-tight">4-Team Tournament</h1>
-          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Sat Oct 17, 2026 7:00 PM CST</p>
+          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Loading schedule...</p>
         </div>
       </div>
       
@@ -45,7 +45,7 @@
         <button id="enable-audio-btn" onclick="enableAudio()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 shadow transition">
           <span id="audio-icon">🔔</span> <span id="audio-text">Enable Audio</span>
         </button>
-        <button id="schedule-time-btn" onclick="openScheduleModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-semibold shadow transition">
+        <button onclick="openScheduleModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-semibold shadow transition">
           📅 Set Schedule
         </button>
         <button onclick="triggerWipeAction()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-semibold transition" title="Reset Tournament Data">
@@ -63,13 +63,6 @@
       </button>
       <button id="tab-btn-standings" onclick="switchTab('standings')" class="flex-1 py-2 text-center text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition">
         🏆 Standings & Rules
-      </button>
-      <button id="tab-btn-playoffs" onclick="switchTab('playoffs')" class="flex-1 py-2 text-center text-sm font-semibold rounded-lg text-slate-400 hover:text-white transition relative">
-        🥇 Finals Stage
-        <span id="playoff-badge" class="hidden absolute -top-1 -right-1 flex h-3 w-3">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-        </span>
       </button>
     </div>
   </nav>
@@ -110,10 +103,10 @@
       <div id="live-clock-display" class="font-mono text-amber-300">Current Time: --:--</div>
     </div>
 
-    <!-- TAB 1: SCHEDULE & MATCH TIMERS -->
+    <!-- TAB 1: SCHEDULE & MATCH TIMERS (GROUP + FINALS FIXED) -->
     <section id="tab-schedule" class="tab-content space-y-4">
       <div class="flex justify-between items-center text-sm text-slate-300 px-1">
-        <h2 class="font-bold text-white text-base">Group Stage (6 Games)</h2>
+        <h2 class="font-bold text-white text-base">All Tournament Matches (Group & Finals)</h2>
         <span class="text-xs text-slate-400">Win = 2 pts | Draw = 1 pt</span>
       </div>
 
@@ -122,12 +115,12 @@
       </div>
     </section>
 
-    <!-- TAB 2: STANDINGS & LEADERBOARD -->
+    <!-- TAB 2: STANDINGS & RULES -->
     <section id="tab-standings" class="tab-content hidden space-y-4">
       <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow">
         <h2 class="text-lg font-bold text-white mb-3 flex items-center justify-between">
           <span>Live Group Standings</span>
-          <span class="text-xs font-normal text-amber-400">Top 2 to Finals • 3rd/4th to 3rd Match</span>
+          <span class="text-xs font-normal text-amber-400">Top 2 to Finals • 3rd/4th to 3rd Place Match</span>
         </h2>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
@@ -147,39 +140,6 @@
               <!-- Rendered via JS -->
             </tbody>
           </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 3: PLAYOFFS & FINALS -->
-    <section id="tab-playoffs" class="tab-content hidden space-y-4">
-      <div id="playoff-lock-msg" class="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center space-y-2">
-        <span class="text-3xl">🔒</span>
-        <h3 class="font-bold text-white text-base">Finals Stage Locked</h3>
-        <p class="text-xs text-slate-400 max-w-sm mx-auto">Complete all 6 Group Stage matches to automatically unlock and seed the 3rd Place Match and Championship Game.</p>
-      </div>
-
-      <div id="playoff-container" class="hidden space-y-4">
-        <div id="champion-banner" class="hidden bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 rounded-xl p-5 text-center text-slate-900 shadow-xl space-y-1 animate-bounce">
-          <span class="text-4xl">🏆</span>
-          <h2 class="text-2xl font-extrabold uppercase tracking-wider" id="champion-team-name">TEAM WINNER</h2>
-          <p class="text-xs font-bold uppercase tracking-widest opacity-90">Tournament Champion</p>
-        </div>
-
-        <div class="bg-slate-800 rounded-xl border border-amber-500/30 p-4 space-y-3">
-          <h3 class="font-bold text-amber-400 text-sm flex justify-between">
-            <span>🥇 Championship Match (1st vs 2nd)</span>
-            <span class="text-xs text-slate-400">Match 8</span>
-          </h3>
-          <div id="playoff-final-card"></div>
-        </div>
-
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 space-y-3">
-          <h3 class="font-bold text-slate-300 text-sm flex justify-between">
-            <span>🥉 3rd Place Match (3rd vs 4th)</span>
-            <span class="text-xs text-slate-400">Match 7</span>
-          </h3>
-          <div id="playoff-third-card"></div>
         </div>
       </div>
     </section>
@@ -219,7 +179,7 @@
       <h3 class="text-base font-bold text-white flex items-center gap-2">
         <span>📅</span> Set Official Start Time
       </h3>
-      <p class="text-xs text-slate-300">Setting this will lock the schedule. Changing or resetting it back to Oct 17, 2026 7:00 PM CST later requires passcode 1357.</p>
+      <p class="text-xs text-slate-300">Setting this will lock the schedule. Changing or resetting it later requires passcode 1357.</p>
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1">Start Date & Time</label>
         <input type="datetime-local" id="tournament-datetime-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
@@ -247,15 +207,17 @@
     const db = firebase.database();
 
     const myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
-    const DEFAULT_START_TIME = new Date("2026-10-17T19:00:00-06:00").getTime(); // Oct 17, 2026 7:00 PM CST
+    const DEFAULT_START_TIME = new Date("2026-10-17T19:00:00").getTime();
 
-    const defaultGroupMatches = [
-      { id: 1, teamA: "Blue", teamB: "Red" },
-      { id: 2, teamA: "White", teamB: "Black" },
-      { id: 3, teamA: "Blue", teamB: "White" },
-      { id: 4, teamA: "Red", teamB: "Black" },
-      { id: 5, teamA: "Blue", teamB: "Black" },
-      { id: 6, teamA: "Red", teamB: "White" }
+    const allTournamentMatches = [
+      { id: 1, type: 'group', teamA: "Blue", teamB: "Red" },
+      { id: 2, type: 'group', teamA: "White", teamB: "Black" },
+      { id: 3, type: 'group', teamA: "Blue", teamB: "White" },
+      { id: 4, type: 'group', teamA: "Red", teamB: "Black" },
+      { id: 5, type: 'group', teamA: "Blue", teamB: "Black" },
+      { id: 6, type: 'group', teamA: "Red", teamB: "White" },
+      { id: 7, type: 'third', teamA: "3rd Place", teamB: "4th Place" },
+      { id: 8, type: 'final', teamA: "1st Place", teamB: "2nd Place" }
     ];
 
     let tournamentStartTime = DEFAULT_START_TIME;
@@ -266,6 +228,7 @@
     let pendingAction = null;
     let audioContext = null;
     let triggeredAlarms = {};
+    let currentSortedTeams = [];
 
     // FIREBASE LISTENERS
     db.ref('tournament_config').on('value', snapshot => {
@@ -286,7 +249,7 @@
 
     db.ref('playoffs').on('value', snapshot => {
       playoffData = snapshot.val() || {};
-      renderPlayoffs();
+      renderMatches();
     });
 
     db.ref('active_request').on('value', snapshot => {
@@ -294,7 +257,6 @@
       renderApprovalBanner();
     });
 
-    // AUDIO SYSTEM
     function enableAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -334,11 +296,11 @@
       const d = new Date(tournamentStartTime);
       const dateStr = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
       const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('header-schedule-text').innerText = `${dateStr} ${timeStr} ${scheduleLocked ? '🔒 (Locked)' : ''}`;
+      document.getElementById('header-schedule-text').innerText = `${dateStr} ${timeStr} ${scheduleLocked ? '🔒' : ''}`;
     }
 
     function switchTab(tab) {
-      ['schedule', 'standings', 'playoffs'].forEach(t => {
+      ['schedule', 'standings'].forEach(t => {
         document.getElementById(`tab-${t}`).classList.add('hidden');
         document.getElementById(`tab-btn-${t}`).classList.remove('bg-indigo-600', 'text-white');
         document.getElementById(`tab-btn-${t}`).classList.add('text-slate-400');
@@ -349,15 +311,29 @@
       document.getElementById(`tab-btn-${tab}`).classList.remove('text-slate-400');
     }
 
-    // RENDER MATCHES
     function renderMatches() {
       const container = document.getElementById('matches-list');
       container.innerHTML = '';
       const now = Date.now();
 
-      defaultGroupMatches.forEach((baseMatch, idx) => {
+      // Determine playoff teams if available
+      let t3 = "3rd Place", t4 = "4th Place", t1 = "1st Place", t2 = "2nd Place";
+      if (currentSortedTeams.length >= 4) {
+        t1 = currentSortedTeams[0].name;
+        t2 = currentSortedTeams[1].name;
+        t3 = currentSortedTeams[2].name;
+        t4 = currentSortedTeams[3].name;
+      }
+
+      allTournamentMatches.forEach((baseMatch, idx) => {
         const matchId = baseMatch.id;
         const match = matchesData[matchId] || { winner: null, scoreA: '', scoreB: '', status: 'idle', resultApproved: false };
+
+        let teamAName = baseMatch.teamA;
+        let teamBName = baseMatch.teamB;
+
+        if (matchId === 7) { teamAName = t3; teamBName = t4; }
+        if (matchId === 8) { teamAName = t1; teamBName = t2; }
 
         const matchStartTime = tournamentStartTime + (idx * 10 * 60 * 1000);
         const matchEndTime = matchStartTime + (8 * 60 * 1000);
@@ -365,7 +341,6 @@
         const startStr = new Date(matchStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const endStr = new Date(matchEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // Trigger alarm when match hits exact end time
         if (match.status === 'running' && now >= matchEndTime && !triggeredAlarms[matchId]) {
           triggeredAlarms[matchId] = true;
           play10SecondRefereeAlarm();
@@ -378,15 +353,17 @@
         const card = document.createElement('div');
         card.className = "bg-slate-800 rounded-xl border border-slate-700 p-3.5 shadow flex flex-col gap-3";
 
+        let labelBadge = matchId <= 6 ? `Group Match #${matchId}` : matchId === 7 ? `🥉 3rd Place Match` : `🥇 Championship`;
+
         card.innerHTML = `
           <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-700/60 pb-2">
-            <span class="font-bold text-amber-400">Match #${matchId}</span>
+            <span class="font-bold text-amber-400">${labelBadge}</span>
             <span class="font-mono bg-slate-900/80 px-2.5 py-0.5 rounded text-amber-300 font-bold">${startStr} – ${endStr}</span>
           </div>
 
           <div class="flex items-center justify-between gap-2">
-            <div class="flex-1 text-center font-bold text-sm sm:text-base ${getTeamColorClass(baseMatch.teamA)}">
-              ${baseMatch.teamA}
+            <div class="flex-1 text-center font-bold text-sm sm:text-base ${getTeamColorClass(teamAName)}">
+              ${teamAName}
             </div>
 
             <div class="flex items-center gap-1">
@@ -401,27 +378,27 @@
                 class="w-10 h-9 bg-slate-900 border border-slate-700 text-center text-amber-400 font-bold rounded-lg focus:outline-none focus:border-indigo-500 disabled:opacity-50">
             </div>
 
-            <div class="flex-1 text-center font-bold text-sm sm:text-base ${getTeamColorClass(baseMatch.teamB)}">
-              ${baseMatch.teamB}
+            <div class="flex-1 text-center font-bold text-sm sm:text-base ${getTeamColorClass(teamBName)}">
+              ${teamBName}
             </div>
           </div>
 
           <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-700/40">
             <div class="flex items-center gap-1.5 text-xs">
-              <button onclick="requestOutcomeApproval(${matchId}, '${baseMatch.teamA}')" 
-                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
-                class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === baseMatch.teamA ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
-                ${baseMatch.teamA} Win
+              <button onclick="requestOutcomeApproval(${matchId}, '${teamAName}')" 
+                ${(!isMatchFinished || isOutcomeLocked || teamAName.includes('Place')) ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === teamAName ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
+                ${teamAName} Win
               </button>
               <button onclick="requestOutcomeApproval(${matchId}, 'DRAW')" 
-                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
+                ${(!isMatchFinished || isOutcomeLocked || teamAName.includes('Place')) ? 'disabled' : ''}
                 class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === 'DRAW' ? 'bg-amber-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
                 Draw
               </button>
-              <button onclick="requestOutcomeApproval(${matchId}, '${baseMatch.teamB}')" 
-                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
-                class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === baseMatch.teamB ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
-                ${baseMatch.teamB} Win
+              <button onclick="requestOutcomeApproval(${matchId}, '${teamBName}')" 
+                ${(!isMatchFinished || isOutcomeLocked || teamAName.includes('Place')) ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === teamBName ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
+                ${teamBName} Win
               </button>
             </div>
 
@@ -471,7 +448,7 @@
         case 'red': return 'text-red-400';
         case 'white': return 'text-slate-100';
         case 'black': return 'text-slate-400';
-        default: return 'text-white';
+        default: return 'text-slate-400';
       }
     }
 
@@ -508,7 +485,6 @@
       });
     }
 
-    // PASSCODE (1357) LOGIC
     function triggerMatchResetAction(matchId) {
       pendingAction = { type: 'RESET_MATCH', matchId: matchId };
       document.getElementById('passcode-modal-title').innerText = `Reset Match #${matchId}`;
@@ -518,7 +494,7 @@
 
     function triggerWipeAction() {
       pendingAction = { type: 'RESET_ALL' };
-      document.getElementById('passcode-modal-title').innerText = `Reset To Default (Oct 17, 2026 7:00 PM CST)`;
+      document.getElementById('passcode-modal-title').innerText = `Reset Tournament Schedule`;
       document.getElementById('passcode-input').value = '';
       document.getElementById('passcode-modal').classList.remove('hidden');
     }
@@ -581,7 +557,7 @@
         db.ref('active_request').set({
           type: 'RESET_ALL',
           title: `Reset Entire Tournament`,
-          desc: `Needs 3 approvals across devices to restore Oct 17, 2026 7:00 PM CST defaults.`,
+          desc: `Needs 3 approvals across devices to restore default schedule.`,
           requiredApprovals: 3,
           approvals: approvals
         });
@@ -661,7 +637,6 @@
       db.ref('active_request').remove();
     }
 
-    // SCHEDULE SETTING & LOCKING
     function openScheduleModal() {
       if (scheduleLocked) {
         pendingAction = { type: 'UNLOCK_SCHEDULE' };
@@ -691,7 +666,6 @@
       closeScheduleModal();
     }
 
-    // STANDINGS CALCULATION & TIE-BREAKER RESOLUTION
     function calculateStandings() {
       const teams = {
         Blue:  { name: 'Blue', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 },
@@ -700,13 +674,10 @@
         Black: { name: 'Black', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 }
       };
 
-      let approvedMatchesCount = 0;
-
-      defaultGroupMatches.forEach(baseMatch => {
+      allTournamentMatches.slice(0, 6).forEach(baseMatch => {
         const m = matchesData[baseMatch.id];
         if (!m || !m.resultApproved) return;
 
-        approvedMatchesCount++;
         const tA = teams[baseMatch.teamA];
         const tB = teams[baseMatch.teamB];
 
@@ -732,17 +703,17 @@
         tB.GD = tB.GF - tB.GA;
       });
 
-      const sortedTeams = Object.values(teams).sort((a, b) => {
+      currentSortedTeams = Object.values(teams).sort((a, b) => {
         if (b.Pts !== a.Pts) return b.Pts - a.Pts;
         if (b.GD !== a.GD) return b.GD - a.GD;
         if (b.GF !== a.GF) return b.GF - a.GF;
-        return 0.5 - Math.random(); // Random selection tie-breaker if completely equal
+        return 0.5 - Math.random();
       });
 
       const tbody = document.getElementById('standings-table-body');
       tbody.innerHTML = '';
 
-      sortedTeams.forEach((t, idx) => {
+      currentSortedTeams.forEach((t, idx) => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition";
         tr.innerHTML = `
@@ -757,68 +728,8 @@
         `;
         tbody.appendChild(tr);
       });
-
-      if (approvedMatchesCount >= 6) {
-        document.getElementById('playoff-badge').classList.remove('hidden');
-        document.getElementById('playoff-lock-msg').classList.add('hidden');
-        document.getElementById('playoff-container').classList.remove('hidden');
-
-        if (!playoffData.seeded) {
-          db.ref('playoffs').set({
-            seeded: true,
-            thirdPlace: { teamA: sortedTeams[2].name, teamB: sortedTeams[3].name, winner: null },
-            final: { teamA: sortedTeams[0].name, teamB: sortedTeams[1].name, winner: null }
-          });
-        }
-      }
     }
 
-    // PLAYOFF RENDER
-    function renderPlayoffs() {
-      if (!playoffData.seeded) return;
-
-      const finalCard = document.getElementById('playoff-final-card');
-      const thirdCard = document.getElementById('playoff-third-card');
-
-      const f = playoffData.final || {};
-      const t = playoffData.thirdPlace || {};
-
-      finalCard.innerHTML = `
-        <div class="flex items-center justify-between gap-2 my-2">
-          <span class="font-bold ${getTeamColorClass(f.teamA || '')}">${f.teamA || '1st Place'}</span>
-          <span class="text-xs text-slate-500 font-bold">VS</span>
-          <span class="font-bold ${getTeamColorClass(f.teamB || '')}">${f.teamB || '2nd Place'}</span>
-        </div>
-        <div class="flex justify-center gap-2 pt-2">
-          <button onclick="setPlayoffWinner('final', '${f.teamA}')" class="px-3 py-1 bg-amber-600 hover:bg-amber-500 rounded text-xs font-bold text-white">${f.teamA} Win Champion</button>
-          <button onclick="setPlayoffWinner('final', '${f.teamB}')" class="px-3 py-1 bg-amber-600 hover:bg-amber-500 rounded text-xs font-bold text-white">${f.teamB} Win Champion</button>
-        </div>
-      `;
-
-      thirdCard.innerHTML = `
-        <div class="flex items-center justify-between gap-2 my-2">
-          <span class="font-bold ${getTeamColorClass(t.teamA || '')}">${t.teamA || '3rd Place'}</span>
-          <span class="text-xs text-slate-500 font-bold">VS</span>
-          <span class="font-bold ${getTeamColorClass(t.teamB || '')}">${t.teamB || '4th Place'}</span>
-        </div>
-        <div class="flex justify-center gap-2 pt-2">
-          <button onclick="setPlayoffWinner('thirdPlace', '${t.teamA}')" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-white">${t.teamA} Win 3rd</button>
-          <button onclick="setPlayoffWinner('thirdPlace', '${t.teamB}')" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs font-bold text-white">${t.teamB} Win 3rd</button>
-        </div>
-      `;
-
-      if (f.winner) {
-        document.getElementById('champion-banner').classList.remove('hidden');
-        document.getElementById('champion-team-name').innerText = f.winner;
-        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      }
-    }
-
-    function setPlayoffWinner(stage, team) {
-      db.ref(`playoffs/${stage}`).update({ winner: team });
-    }
-
-    // INITIAL RENDER & SECOND TICK TICKER
     renderMatches();
     setInterval(() => {
       const now = new Date();
