@@ -293,7 +293,6 @@
     }
 
     function startAudioReminderTimer() {
-      // Pop up immediately if audio not enabled, then repeat every 2 minutes (120,000 ms)
       if (!audioEnabled) {
         document.getElementById('audio-reminder-modal').classList.remove('hidden');
       }
@@ -544,7 +543,7 @@
 
     function triggerMatchResetAction(matchId) {
       pendingAction = { type: 'RESET_MATCH', matchId: matchId };
-      document.getElementById('passcode-modal-title').innerText = `Reset Match #${matchId}`;
+      document.getElementById('passcode-modal-title').innerText = `Reset Match #${matchId} Outcome/Points`;
       document.getElementById('passcode-input').value = '';
       document.getElementById('passcode-modal').classList.remove('hidden');
     }
