@@ -37,7 +37,7 @@
         <span class="text-2xl">⚽</span>
         <div>
           <h1 class="text-lg font-bold text-white tracking-wide leading-tight">4-Team Tournament</h1>
-          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Loading schedule...</p>
+          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Sat, Oct 17, 2026 7:00 PM</p>
         </div>
       </div>
       
@@ -103,7 +103,7 @@
       <div id="live-clock-display" class="font-mono text-amber-300">Current Time: --:--</div>
     </div>
 
-    <!-- TAB 1: SCHEDULE & MATCH TIMERS (GROUP + FINALS FIXED) -->
+    <!-- TAB 1: SCHEDULE & MATCH TIMERS -->
     <section id="tab-schedule" class="tab-content space-y-4">
       <div class="flex justify-between items-center text-sm text-slate-300 px-1">
         <h2 class="font-bold text-white text-base">All Tournament Matches (Group & Finals)</h2>
@@ -145,18 +145,18 @@
     </section>
   </main>
 
-  <!-- MODAL: PASSCODE 1357 UNLOCK -->
+  <!-- MODAL: PASSCODE UNLOCK -->
   <div id="passcode-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-sm w-full space-y-4 text-slate-100">
       <div class="flex items-center gap-2 text-amber-400">
         <span class="text-2xl">🔐</span>
         <h3 id="passcode-modal-title" class="text-base font-bold text-white">Authorization Required</h3>
       </div>
-      <p id="passcode-modal-desc" class="text-xs text-slate-300">Enter Admin Passcode <span class="text-amber-400 font-mono font-bold">(1357)</span> or request 3 live approvals from other devices.</p>
+      <p id="passcode-modal-desc" class="text-xs text-slate-300">Enter Admin Passcode or request live approvals from other devices.</p>
 
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1">Passcode</label>
-        <input type="password" id="passcode-input" placeholder="Enter 1357" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500">
+        <input type="password" id="passcode-input" placeholder="Enter passcode" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500">
       </div>
 
       <div class="flex flex-col gap-2 pt-1">
@@ -179,7 +179,7 @@
       <h3 class="text-base font-bold text-white flex items-center gap-2">
         <span>📅</span> Set Official Start Time
       </h3>
-      <p class="text-xs text-slate-300">Setting this will lock the schedule. Changing or resetting it later requires passcode 1357.</p>
+      <p class="text-xs text-slate-300">Setting this will lock the schedule. Changing or resetting it later requires authorization.</p>
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1">Start Date & Time</label>
         <input type="datetime-local" id="tournament-datetime-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
@@ -229,6 +229,9 @@
     let audioContext = null;
     let triggeredAlarms = {};
     let currentSortedTeams = [];
+
+    // Initialize Header immediately
+    updateScheduleHeader();
 
     // FIREBASE LISTENERS
     db.ref('tournament_config').on('value', snapshot => {
@@ -316,7 +319,6 @@
       container.innerHTML = '';
       const now = Date.now();
 
-      // Determine playoff teams if available
       let t3 = "3rd Place", t4 = "4th Place", t1 = "1st Place", t2 = "2nd Place";
       if (currentSortedTeams.length >= 4) {
         t1 = currentSortedTeams[0].name;
@@ -432,7 +434,7 @@
 
       if (match.status === 'completed' || now >= scheduledEndTime) {
         return `<button onclick="triggerMatchResetAction(${matchId})" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg font-semibold">
-          🔒 Finished (Code 1357)
+          🔒 Finished (Reset)
         </button>`;
       }
 
@@ -501,11 +503,19 @@
 
     function verifyPasscode() {
       const code = document.getElementById('passcode-input').value.trim();
+      // Admin Passcode Check
       if (code === '1357') {
-        executePendingAction();
-        closePasscodeModal();
+        if (pendingAction && pendingAction.type === 'UNLOCK_SCHEDULE') {
+          scheduleLocked = false;
+          db.ref('tournament_config/scheduleLocked').set(false);
+          closePasscodeModal();
+          openScheduleModal();
+        } else {
+          executePendingAction();
+          closePasscodeModal();
+        }
       } else {
-        alert('Incorrect passcode! Enter 1357 or request multi-person approval.');
+        alert('Incorrect passcode!');
       }
     }
 
