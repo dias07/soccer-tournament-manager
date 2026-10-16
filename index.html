@@ -233,7 +233,12 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
+    // Persistent Unique Device Token stored in localStorage so reloading the page never changes this device's ID
+    let myDeviceId = localStorage.getItem('tournament_device_id');
+    if (!myDeviceId) {
+      myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+      localStorage.setItem('tournament_device_id', myDeviceId);
+    }
 
     const allTournamentMatches = [
       { id: 1, type: 'group', teamA: "Blue", teamB: "Red" },
@@ -584,7 +589,7 @@
     }
 
     function requestOutcomeApproval(matchId, outcome) {
-      if (!confirm(`Are you sure you want to declare outcome "${outcome}" for Match #${matchId}? This requires 1 additional approval across devices.`)) {
+      if (!confirm(`Are you sure you want to declare outcome "${outcome}" for Match #${matchId}? This requires 1 additional approval from a separate device.`)) {
         return;
       }
 
@@ -596,7 +601,7 @@
         matchId: matchId,
         outcome: outcome,
         title: `Confirm Outcome for Match #${matchId}`,
-        desc: `Outcome "${outcome}" was submitted. Needs 1 secondary approval to update standings.`,
+        desc: `Outcome "${outcome}" was submitted. Needs 1 secondary approval from another physical device.`,
         requiredApprovals: 2,
         approvals: approvals
       });
@@ -673,7 +678,7 @@
           type: 'RESET_MATCH',
           matchId: pendingAction.matchId,
           title: `Reset Match #${pendingAction.matchId}`,
-          desc: `Needs 2 approvals across devices to reset Match #${pendingAction.matchId}.`,
+          desc: `Needs 2 approvals across separate devices to reset Match #${pendingAction.matchId}.`,
           requiredApprovals: 2,
           approvals: approvals
         });
@@ -681,7 +686,7 @@
         db.ref('active_request').set({
           type: 'RESET_ALL',
           title: `Reset Entire Tournament`,
-          desc: `Needs 3 approvals across devices to reset schedule.`,
+          desc: `Needs 3 approvals across separate devices to reset schedule.`,
           requiredApprovals: 3,
           approvals: approvals
         });
