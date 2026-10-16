@@ -37,7 +37,7 @@
         <span class="text-2xl">⚽</span>
         <div>
           <h1 class="text-lg font-bold text-white tracking-wide leading-tight">4-Team Tournament</h1>
-          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Sat, Oct 17, 2026 7:00 PM</p>
+          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Schedule Not Set</p>
         </div>
       </div>
       
@@ -179,7 +179,7 @@
       <h3 class="text-base font-bold text-white flex items-center gap-2">
         <span>📅</span> Set Official Start Time
       </h3>
-      <p class="text-xs text-slate-300">Setting this will lock the schedule. Changing or resetting it later requires authorization.</p>
+      <p class="text-xs text-slate-300">Setting this will lock the schedule globally across all devices.</p>
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1">Start Date & Time</label>
         <input type="datetime-local" id="tournament-datetime-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
@@ -207,7 +207,6 @@
     const db = firebase.database();
 
     const myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
-    const DEFAULT_START_TIME = new Date("2026-10-17T19:00:00").getTime();
 
     const allTournamentMatches = [
       { id: 1, type: 'group', teamA: "Blue", teamB: "Red" },
@@ -220,7 +219,7 @@
       { id: 8, type: 'final', teamA: "1st Place", teamB: "2nd Place" }
     ];
 
-    let tournamentStartTime = DEFAULT_START_TIME;
+    let tournamentStartTime = null;
     let scheduleLocked = false;
     let matchesData = {};
     let playoffData = {};
@@ -230,14 +229,13 @@
     let triggeredAlarms = {};
     let currentSortedTeams = [];
 
-    // Initialize Header immediately
     updateScheduleHeader();
 
     // FIREBASE LISTENERS
     db.ref('tournament_config').on('value', snapshot => {
       const val = snapshot.val();
       if (val) {
-        tournamentStartTime = val.startTime || DEFAULT_START_TIME;
+        tournamentStartTime = val.startTime || null;
         scheduleLocked = !!val.scheduleLocked;
       }
       updateScheduleHeader();
@@ -296,10 +294,14 @@
     }
 
     function updateScheduleHeader() {
+      if (!tournamentStartTime) {
+        document.getElementById('header-schedule-text').innerText = 'Schedule Not Set ⚠️';
+        return;
+      }
       const d = new Date(tournamentStartTime);
       const dateStr = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
       const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('header-schedule-text').innerText = `${dateStr} ${timeStr} ${scheduleLocked ? '🔒' : ''}`;
+      document.getElementById('header-schedule-text').innerText = `${dateStr} ${timeStr} 🔒`;
     }
 
     function switchTab(tab) {
@@ -337,19 +339,23 @@
         if (matchId === 7) { teamAName = t3; teamBName = t4; }
         if (matchId === 8) { teamAName = t1; teamBName = t2; }
 
-        const matchStartTime = tournamentStartTime + (idx * 10 * 60 * 1000);
-        const matchEndTime = matchStartTime + (8 * 60 * 1000);
+        let startStr = '--:--', endStr = '--:--';
+        let matchStartTime = 0, matchEndTime = 0;
 
-        const startStr = new Date(matchStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const endStr = new Date(matchEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (tournamentStartTime) {
+          matchStartTime = tournamentStartTime + (idx * 10 * 60 * 1000);
+          matchEndTime = matchStartTime + (8 * 60 * 1000);
+          startStr = new Date(matchStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          endStr = new Date(matchEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        if (match.status === 'running' && now >= matchEndTime && !triggeredAlarms[matchId]) {
-          triggeredAlarms[matchId] = true;
-          play10SecondRefereeAlarm();
-          db.ref(`matches/${matchId}`).update({ status: 'completed' });
+          if (match.status === 'running' && now >= matchEndTime && !triggeredAlarms[matchId]) {
+            triggeredAlarms[matchId] = true;
+            play10SecondRefereeAlarm();
+            db.ref(`matches/${matchId}`).update({ status: 'completed' });
+          }
         }
 
-        const isMatchFinished = match.status === 'completed' || now >= matchEndTime;
+        const isMatchFinished = match.status === 'completed' || (tournamentStartTime && now >= matchEndTime);
         const isOutcomeLocked = match.resultApproved;
 
         const card = document.createElement('div');
@@ -415,6 +421,10 @@
     }
 
     function renderTimerButton(matchId, match, scheduledStartTime, scheduledEndTime) {
+      if (!tournamentStartTime) {
+        return `<span class="text-xs text-slate-500 font-semibold px-2 py-1 bg-slate-900 rounded border border-slate-800">Set Schedule First</span>`;
+      }
+
       const now = Date.now();
 
       if (now < scheduledStartTime && match.status !== 'running') {
@@ -438,7 +448,7 @@
         </button>`;
       }
 
-      return `<button onclick="startMatchTimer(${matchId})" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold">
+      return `<button onclick="startMatchTimer(${matchId})" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-bold">
         ▶️ Start Match
       </button>`;
     }
@@ -462,6 +472,10 @@
     }
 
     function startMatchTimer(matchId) {
+      if (!tournamentStartTime) {
+        alert('Please set the tournament schedule first.');
+        return;
+      }
       db.ref(`matches/${matchId}`).update({
         status: 'running',
         startedAt: Date.now()
@@ -503,7 +517,6 @@
 
     function verifyPasscode() {
       const code = document.getElementById('passcode-input').value.trim();
-      // Admin Passcode Check
       if (code === '1357') {
         if (pendingAction && pendingAction.type === 'UNLOCK_SCHEDULE') {
           scheduleLocked = false;
@@ -541,7 +554,7 @@
         db.ref('matches').remove();
         db.ref('playoffs').remove();
         db.ref('tournament_config').set({
-          startTime: DEFAULT_START_TIME,
+          startTime: null,
           scheduleLocked: false
         });
       }
@@ -567,7 +580,7 @@
         db.ref('active_request').set({
           type: 'RESET_ALL',
           title: `Reset Entire Tournament`,
-          desc: `Needs 3 approvals across devices to restore default schedule.`,
+          desc: `Needs 3 approvals across devices to reset schedule.`,
           requiredApprovals: 3,
           approvals: approvals
         });
@@ -639,7 +652,7 @@
         db.ref('matches').remove();
         db.ref('playoffs').remove();
         db.ref('tournament_config').set({
-          startTime: DEFAULT_START_TIME,
+          startTime: null,
           scheduleLocked: false
         });
       }
@@ -656,7 +669,8 @@
         return;
       }
 
-      const iso = new Date(tournamentStartTime - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+      const defaultTime = tournamentStartTime ? tournamentStartTime : Date.now();
+      const iso = new Date(defaultTime - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
       document.getElementById('tournament-datetime-input').value = iso;
       document.getElementById('schedule-modal').classList.remove('hidden');
     }
