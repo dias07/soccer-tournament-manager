@@ -474,11 +474,11 @@
         const isMatchFinished = match.status === 'completed' || (tournamentStartTime && now >= matchEndTime);
         const isOutcomeLocked = match.resultApproved;
 
+        // Strictly require previous match's result to be officially approved before unlocking next match
         let isPreviousFinished = true;
         if (idx > 0) {
           const prevMatch = matchesData[allTournamentMatches[idx - 1].id];
-          const prevFinished = prevMatch && (prevMatch.status === 'completed' || prevMatch.resultApproved);
-          isPreviousFinished = prevFinished;
+          isPreviousFinished = prevMatch && prevMatch.resultApproved === true;
         }
 
         const card = document.createElement('div');
@@ -549,7 +549,7 @@
       }
 
       if (!isPreviousFinished && match.status !== 'running' && match.status !== 'completed') {
-        return `<span class="text-xs text-slate-500 font-semibold px-2 py-1 bg-slate-900 rounded border border-slate-800">🔒 Waiting for prev match</span>`;
+        return `<span class="text-xs text-slate-500 font-semibold px-2 py-1 bg-slate-900 rounded border border-slate-800">🔒 Waiting for prev approval</span>`;
       }
 
       const now = Date.now();
@@ -788,7 +788,7 @@
         pendingAction = { type: 'UNLOCK_SCHEDULE' };
         document.getElementById('passcode-modal-title').innerText = `Schedule Locked`;
         document.getElementById('passcode-input').value = '';
-        document.getElementById('passcode-modal').classList.remove('hidden');
+        document.getElementById('passcode-modal').classList.add('hidden');
         return;
       }
 
