@@ -42,7 +42,7 @@
       </div>
       
       <div class="flex items-center gap-2 text-xs">
-        <button id="enable-audio-btn" onclick="enableAudio()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 shadow transition">
+        <button id="enable-audio-btn" onclick="toggleAudio()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 shadow transition">
           <span id="audio-icon">🔔</span> <span id="audio-text">Enable Audio</span>
         </button>
         <button onclick="openScheduleModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-semibold shadow transition">
@@ -145,7 +145,22 @@
     </section>
   </main>
 
-  <!-- MODAL: AUDIO REMINDER POPUP (Every 2 Minutes until enabled) -->
+  <!-- MODAL: HUGE MATCH ENDED ALERT POPUP -->
+  <div id="match-ended-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 border-2 border-rose-500 rounded-3xl p-8 max-w-md w-full space-y-6 text-slate-100 text-center shadow-2xl animate-pulse">
+      <span class="text-6xl">⏱️🚨</span>
+      <div>
+        <h2 class="text-2xl font-extrabold text-rose-400 tracking-wide uppercase">The Game Has Ended!</h2>
+        <p id="ended-match-title" class="text-lg font-bold text-white mt-2"></p>
+        <p id="ended-match-time" class="text-sm font-mono text-amber-300 mt-1"></p>
+      </div>
+      <button onclick="closeMatchEndedModal()" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3.5 rounded-xl text-base shadow-lg transition">
+        OK / Dismiss
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: AUDIO REMINDER POPUP (Waits 5m on open, then every 2m) -->
   <div id="audio-reminder-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="bg-slate-800 border border-amber-500/50 rounded-2xl p-6 max-w-sm w-full space-y-4 text-slate-100 text-center shadow-2xl animate-bounce">
       <span class="text-4xl">🔔</span>
@@ -220,7 +235,6 @@
 
     const myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
 
-    // Exactly 10 Group Matches + 2 Finals = 12 Total Matches (Fits within 2 hours at 10m per match block)
     const allTournamentMatches = [
       { id: 1, type: 'group', teamA: "Blue", teamB: "Red" },
       { id: 2, type: 'group', teamA: "White", teamB: "Black" },
@@ -244,12 +258,13 @@
     let pendingAction = null;
     let audioContext = null;
     let audioEnabled = false;
+    let audioPopupTimer = null;
     let audioPopupInterval = null;
     let triggeredAlarms = {};
     let currentSortedTeams = [];
 
     updateScheduleHeader();
-    startAudioReminderTimer();
+    startAudioReminderTimers();
 
     // FIREBASE LISTENERS
     db.ref('tournament_config').on('value', snapshot => {
@@ -278,6 +293,14 @@
       renderApprovalBanner();
     });
 
+    function toggleAudio() {
+      if (!audioEnabled) {
+        enableAudio();
+      } else {
+        disableAudio();
+      }
+    }
+
     function enableAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -286,49 +309,81 @@
         audioContext.resume();
       }
       audioEnabled = true;
+      clearTimeout(audioPopupTimer);
       clearInterval(audioPopupInterval);
       document.getElementById('audio-reminder-modal').classList.add('hidden');
       document.getElementById('audio-icon').innerText = '🔔';
-      document.getElementById('audio-text').innerText = 'Audio Ready';
+      document.getElementById('audio-text').innerText = 'Audio Enabled (Disable)';
       document.getElementById('enable-audio-btn').classList.replace('bg-amber-600', 'bg-emerald-600');
+    }
+
+    function disableAudio() {
+      audioEnabled = false;
+      if (audioContext && audioContext.state === 'running') {
+        audioContext.suspend();
+      }
+      document.getElementById('audio-icon').innerText = '🔕';
+      document.getElementById('audio-text').innerText = 'Enable Audio';
+      document.getElementById('enable-audio-btn').classList.replace('bg-emerald-600', 'bg-amber-600');
+      
+      startAudioReminderTimers();
     }
 
     function enableAudioFromModal() {
       enableAudio();
     }
 
-    function startAudioReminderTimer() {
+    function startAudioReminderTimers() {
+      clearTimeout(audioPopupTimer);
+      clearInterval(audioPopupInterval);
+
       if (!audioEnabled) {
-        document.getElementById('audio-reminder-modal').classList.remove('hidden');
+        // Wait 5 minutes (300,000 ms) before the first popup when opened or disabled
+        audioPopupTimer = setTimeout(() => {
+          if (!audioEnabled) {
+            document.getElementById('audio-reminder-modal').classList.remove('hidden');
+          }
+          // Then repeat every 2 minutes (120,000 ms)
+          audioPopupInterval = setInterval(() => {
+            if (!audioEnabled) {
+              document.getElementById('audio-reminder-modal').classList.remove('hidden');
+            }
+          }, 120000);
+        }, 300000);
       }
-      audioPopupInterval = setInterval(() => {
-        if (!audioEnabled) {
-          document.getElementById('audio-reminder-modal').classList.remove('hidden');
-        }
-      }, 120000);
     }
 
-    function play10SecondRefereeAlarm() {
-      if (!audioContext) return;
-      const duration = 10;
-      const startTime = audioContext.currentTime;
+    function play10SecondRefereeAlarm(matchTitle, timeStr) {
+      if (audioEnabled && audioContext) {
+        const duration = 10;
+        const startTime = audioContext.currentTime;
 
-      function triggerHornBeep(time) {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(880, time);
-        gain.gain.setValueAtTime(0.4, time);
-        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.45);
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        osc.start(time);
-        osc.stop(time + 0.45);
+        function triggerHornBeep(time) {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(880, time);
+          gain.gain.setValueAtTime(0.4, time);
+          gain.gain.exponentialRampToValueAtTime(0.01, time + 0.45);
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.start(time);
+          osc.stop(time + 0.45);
+        }
+
+        for (let i = 0; i < duration * 2; i++) {
+          triggerHornBeep(startTime + (i * 0.5));
+        }
       }
 
-      for (let i = 0; i < duration * 2; i++) {
-        triggerHornBeep(startTime + (i * 0.5));
-      }
+      // Show Huge Popup
+      document.getElementById('ended-match-title').innerText = matchTitle;
+      document.getElementById('ended-match-time').innerText = `Scheduled: ${timeStr}`;
+      document.getElementById('match-ended-modal').classList.remove('hidden');
+    }
+
+    function closeMatchEndedModal() {
+      document.getElementById('match-ended-modal').classList.add('hidden');
     }
 
     function updateScheduleHeader() {
@@ -388,7 +443,8 @@
 
           if (match.status === 'running' && now >= matchEndTime && !triggeredAlarms[matchId]) {
             triggeredAlarms[matchId] = true;
-            play10SecondRefereeAlarm();
+            let matchLabel = matchId <= 10 ? `Group Match #${matchId} (${teamAName} vs ${teamBName})` : matchId === 11 ? `🥉 3rd Place Match (${teamAName} vs ${teamBName})` : `🥇 Championship (${teamAName} vs ${teamBName})`;
+            play10SecondRefereeAlarm(matchLabel, `${startStr} – ${endStr}`);
             db.ref(`matches/${matchId}`).update({ status: 'completed' });
           }
         }
@@ -449,7 +505,7 @@
                 Draw
               </button>
               <button onclick="requestOutcomeApproval(${matchId}, '${teamBName}')" 
-                ${(!isMatchFinished || isOutcomeLocked || teamAName.includes('Place')) ? 'disabled' : ''}
+                ${(!isMatchFinished || isOutcomeLocked || teamBName.includes('Place')) ? 'disabled' : ''}
                 class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === teamBName ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
                 ${teamBName} Win
               </button>
