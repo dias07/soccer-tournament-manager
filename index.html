@@ -30,6 +30,11 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen pb-16 font-sans">
 
+  <!-- SILENT AUDIO ELEMENT TO KEEP IOS AWAKE IN BACKGROUND -->
+  <audio id="silent-bg-audio" loop preload="auto" style="display:none;">
+    <source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU2LjM2LjEwMAAAAAAAAAAAAAAA//uQZAAAAAAAAAAAAAAAAAAAAAAAWGluZm8AAAAPAAAAEAAACbMAAwMEBQYGBwkKCwwMDQ4PEBESExQVFhcYGRobHB0eHx8gISIjJCUmJygpKitMLzI0NTY3ODk6Ozw9PkJDREVGR0hJSktMTk9QUVJTVFVWV1hZWltcXV5fYGJjZWZmZ2hpamtsbm+QkZKWl5idn6Gio6WnpsjIyg==" type="audio/mp3">
+  </audio>
+
   <!-- TOP APP BAR -->
   <header class="sticky top-0 z-40 bg-slate-800/95 backdrop-blur border-b border-slate-700 px-4 py-3 shadow-md">
     <div class="max-w-4xl mx-auto flex flex-wrap justify-between items-center gap-2">
@@ -233,7 +238,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Persistent Unique Device Token stored in localStorage so reloading the page never changes this device's ID
+    // Bulletproof Persistent Device ID stored strictly once in localStorage
     let myDeviceId = localStorage.getItem('tournament_device_id');
     if (!myDeviceId) {
       myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
@@ -313,6 +318,15 @@
       if (audioContext.state === 'suspended') {
         audioContext.resume();
       }
+
+      // Play silent audio loop & setup Media Session API to keep iOS alive in background
+      const silentAudio = document.getElementById('silent-bg-audio');
+      silentAudio.play().catch(e => console.log("Silent audio autoplay prevented:", e));
+
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
+
       audioEnabled = true;
       clearTimeout(audioPopupTimer);
       clearInterval(audioPopupInterval);
@@ -324,6 +338,9 @@
 
     function disableAudio() {
       audioEnabled = false;
+      const silentAudio = document.getElementById('silent-bg-audio');
+      silentAudio.pause();
+
       if (audioContext && audioContext.state === 'running') {
         audioContext.suspend();
       }
@@ -343,7 +360,7 @@
       clearInterval(audioPopupInterval);
 
       if (!audioEnabled) {
-        // Wait 5 minutes (300,000 ms) before the first popup when opened or disabled
+        // Wait 5 minutes (300,000 ms) before first popup when opened or disabled
         audioPopupTimer = setTimeout(() => {
           if (!audioEnabled) {
             document.getElementById('audio-reminder-modal').classList.remove('hidden');
