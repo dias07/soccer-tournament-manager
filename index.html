@@ -112,7 +112,7 @@
     <section id="tab-schedule" class="tab-content space-y-4">
       <div class="flex justify-between items-center text-sm text-slate-300 px-1">
         <h2 class="font-bold text-white text-base">All Tournament Matches (10 Group + 2 Finals)</h2>
-        <span class="text-xs text-slate-400">Win = 2 pts | Draw = 1 pt</span>
+        <span class="text-xs text-slate-400">Win = 3 pts | Draw = 1 pt</span>
       </div>
 
       <div id="matches-list" class="space-y-3">
@@ -788,7 +788,7 @@
         pendingAction = { type: 'UNLOCK_SCHEDULE' };
         document.getElementById('passcode-modal-title').innerText = `Schedule Locked`;
         document.getElementById('passcode-input').value = '';
-        document.getElementById('passcode-modal').classList.add('hidden');
+        document.getElementById('passcode-modal').classList.remove('hidden');
         return;
       }
 
@@ -839,11 +839,12 @@
         tA.GF += scoreA; tA.GA += scoreB;
         tB.GF += scoreB; tB.GA += scoreA;
 
+        // WIN POINT CHANGED TO 3 POINTS HERE
         if (m.winner === baseMatch.teamA || scoreA > scoreB) {
-          tA.W++; tA.Pts += 2;
+          tA.W++; tA.Pts += 3;
           tB.L++;
         } else if (m.winner === baseMatch.teamB || scoreB > scoreA) {
-          tB.W++; tB.Pts += 2;
+          tB.W++; tB.Pts += 3;
           tA.L++;
         } else if (m.winner === 'DRAW' || scoreA === scoreB) {
           tA.D++; tA.Pts += 1;
