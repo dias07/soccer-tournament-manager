@@ -15,7 +15,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
-    /* iOS Safari Touch & Viewport Fixes */
     html, body {
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
@@ -38,7 +37,7 @@
         <span class="text-2xl">⚽</span>
         <div>
           <h1 class="text-lg font-bold text-white tracking-wide leading-tight">4-Team Tournament</h1>
-          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Sat 6:30 PM • 8m Games • 2m Rest</p>
+          <p id="header-schedule-text" class="text-xs text-amber-400 font-medium">Sat Oct 17, 2026 7:00 PM CST</p>
         </div>
       </div>
       
@@ -46,10 +45,10 @@
         <button id="enable-audio-btn" onclick="enableAudio()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 shadow transition">
           <span id="audio-icon">🔔</span> <span id="audio-text">Enable Audio</span>
         </button>
-        <button onclick="openScheduleModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-semibold shadow transition">
-          📅 Set Time
+        <button id="schedule-time-btn" onclick="openScheduleModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-semibold shadow transition">
+          📅 Set Schedule
         </button>
-        <button onclick="triggerWipeAction()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-semibold transition" title="Reset All Tournament Data">
+        <button onclick="triggerWipeAction()" class="bg-rose-700 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-lg font-semibold transition" title="Reset Tournament Data">
           🗑️
         </button>
       </div>
@@ -186,26 +185,26 @@
     </section>
   </main>
 
-  <!-- MODAL: PASSCODE & APPROVAL CHOICE -->
+  <!-- MODAL: PASSCODE 1357 UNLOCK -->
   <div id="passcode-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-sm w-full space-y-4 text-slate-100">
       <div class="flex items-center gap-2 text-amber-400">
         <span class="text-2xl">🔐</span>
-        <h3 id="passcode-modal-title" class="text-base font-bold text-white">Reset Authorization</h3>
+        <h3 id="passcode-modal-title" class="text-base font-bold text-white">Authorization Required</h3>
       </div>
-      <p id="passcode-modal-desc" class="text-xs text-slate-300">Enter Admin Passcode <span class="text-amber-400 font-mono font-bold">(1234)</span> to reset immediately, or request multi-person approval across phones.</p>
+      <p id="passcode-modal-desc" class="text-xs text-slate-300">Enter Admin Passcode <span class="text-amber-400 font-mono font-bold">(1357)</span> or request 3 live approvals from other devices.</p>
 
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1">Passcode</label>
-        <input type="password" id="passcode-input" placeholder="Enter code" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500">
+        <input type="password" id="passcode-input" placeholder="Enter 1357" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-center text-lg tracking-widest font-mono text-white focus:outline-none focus:border-amber-500">
       </div>
 
       <div class="flex flex-col gap-2 pt-1">
         <button onclick="verifyPasscode()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-sm transition">
-          Unlock & Reset Now
+          Unlock & Execute
         </button>
         <button onclick="requestLiveApproval()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-2.5 rounded-lg text-xs transition">
-          Request Approval From Other Devices Instead
+          Request Approval Across Devices
         </button>
         <button onclick="closePasscodeModal()" class="w-full bg-transparent text-slate-400 text-xs py-1 hover:text-white transition">
           Cancel
@@ -218,15 +217,15 @@
   <div id="schedule-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-sm w-full space-y-4 text-slate-100">
       <h3 class="text-base font-bold text-white flex items-center gap-2">
-        <span>📅</span> Tournament Start Time
+        <span>📅</span> Set Official Start Time
       </h3>
-      <p class="text-xs text-slate-300">Set the official start date and time (e.g., 6:30 PM). All game slots will automatically adjust to 8-minute match blocks + 2-minute rest breaks.</p>
+      <p class="text-xs text-slate-300">Setting this will lock the schedule. Changing or resetting it back to Oct 17, 2026 7:00 PM CST later requires passcode 1357.</p>
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1">Start Date & Time</label>
         <input type="datetime-local" id="tournament-datetime-input" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
       </div>
       <div class="flex gap-2">
-        <button onclick="saveNewStartTime()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-sm transition">Save Schedule</button>
+        <button onclick="saveNewStartTime()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-lg text-sm transition">Save & Lock</button>
         <button onclick="closeScheduleModal()" class="px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 py-2.5 rounded-lg text-sm transition">Cancel</button>
       </div>
     </div>
@@ -248,6 +247,7 @@
     const db = firebase.database();
 
     const myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9);
+    const DEFAULT_START_TIME = new Date("2026-10-17T19:00:00-06:00").getTime(); // Oct 17, 2026 7:00 PM CST
 
     const defaultGroupMatches = [
       { id: 1, teamA: "Blue", teamB: "Red" },
@@ -258,7 +258,8 @@
       { id: 6, teamA: "Red", teamB: "White" }
     ];
 
-    let tournamentStartTime = getNextSaturday630PM();
+    let tournamentStartTime = DEFAULT_START_TIME;
+    let scheduleLocked = false;
     let matchesData = {};
     let playoffData = {};
     let activeRequest = null;
@@ -266,22 +267,12 @@
     let audioContext = null;
     let triggeredAlarms = {};
 
-    function getNextSaturday630PM() {
-      const now = new Date();
-      const result = new Date(now);
-      result.setDate(now.getDate() + ((6 - now.getDay() + 7) % 7));
-      result.setHours(18, 30, 0, 0); // 6:30 PM default
-      if (result.getTime() < now.getTime()) {
-        result.setDate(result.getDate() + 7);
-      }
-      return result.getTime();
-    }
-
     // FIREBASE LISTENERS
     db.ref('tournament_config').on('value', snapshot => {
       const val = snapshot.val();
-      if (val && val.startTime) {
-        tournamentStartTime = val.startTime;
+      if (val) {
+        tournamentStartTime = val.startTime || DEFAULT_START_TIME;
+        scheduleLocked = !!val.scheduleLocked;
       }
       updateScheduleHeader();
       renderMatches();
@@ -303,7 +294,7 @@
       renderApprovalBanner();
     });
 
-    // AUDIO SYSTEM (10 SECONDS ALARM)
+    // AUDIO SYSTEM
     function enableAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -341,9 +332,9 @@
 
     function updateScheduleHeader() {
       const d = new Date(tournamentStartTime);
-      const dateStr = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      const dateStr = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
       const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('header-schedule-text').innerText = `${dateStr} ${timeStr} • 8m Games • 2m Rest`;
+      document.getElementById('header-schedule-text').innerText = `${dateStr} ${timeStr} ${scheduleLocked ? '🔒 (Locked)' : ''}`;
     }
 
     function switchTab(tab) {
@@ -358,7 +349,7 @@
       document.getElementById(`tab-btn-${tab}`).classList.remove('text-slate-400');
     }
 
-    // RENDER MATCHES WITH STRICT TIMERS
+    // RENDER MATCHES
     function renderMatches() {
       const container = document.getElementById('matches-list');
       container.innerHTML = '';
@@ -366,21 +357,23 @@
 
       defaultGroupMatches.forEach((baseMatch, idx) => {
         const matchId = baseMatch.id;
-        const match = matchesData[matchId] || { winner: null, scoreA: '', scoreB: '', status: 'idle' };
+        const match = matchesData[matchId] || { winner: null, scoreA: '', scoreB: '', status: 'idle', resultApproved: false };
 
-        // 10-Minute Blocks (8m Game + 2m Rest)
         const matchStartTime = tournamentStartTime + (idx * 10 * 60 * 1000);
         const matchEndTime = matchStartTime + (8 * 60 * 1000);
 
         const startStr = new Date(matchStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const endStr = new Date(matchEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        // Trigger alarm when time hits match end time
+        // Trigger alarm when match hits exact end time
         if (match.status === 'running' && now >= matchEndTime && !triggeredAlarms[matchId]) {
           triggeredAlarms[matchId] = true;
           play10SecondRefereeAlarm();
           db.ref(`matches/${matchId}`).update({ status: 'completed' });
         }
+
+        const isMatchFinished = match.status === 'completed' || now >= matchEndTime;
+        const isOutcomeLocked = match.resultApproved;
 
         const card = document.createElement('div');
         card.className = "bg-slate-800 rounded-xl border border-slate-700 p-3.5 shadow flex flex-col gap-3";
@@ -398,12 +391,14 @@
 
             <div class="flex items-center gap-1">
               <input type="number" placeholder="0" min="0" value="${match.scoreA ?? ''}" 
+                ${isOutcomeLocked ? 'disabled' : ''}
                 onchange="updateScore(${matchId}, 'A', this.value)"
-                class="w-10 h-9 bg-slate-900 border border-slate-700 text-center text-amber-400 font-bold rounded-lg focus:outline-none focus:border-indigo-500">
+                class="w-10 h-9 bg-slate-900 border border-slate-700 text-center text-amber-400 font-bold rounded-lg focus:outline-none focus:border-indigo-500 disabled:opacity-50">
               <span class="text-xs text-slate-500 font-bold">-</span>
               <input type="number" placeholder="0" min="0" value="${match.scoreB ?? ''}" 
+                ${isOutcomeLocked ? 'disabled' : ''}
                 onchange="updateScore(${matchId}, 'B', this.value)"
-                class="w-10 h-9 bg-slate-900 border border-slate-700 text-center text-amber-400 font-bold rounded-lg focus:outline-none focus:border-indigo-500">
+                class="w-10 h-9 bg-slate-900 border border-slate-700 text-center text-amber-400 font-bold rounded-lg focus:outline-none focus:border-indigo-500 disabled:opacity-50">
             </div>
 
             <div class="flex-1 text-center font-bold text-sm sm:text-base ${getTeamColorClass(baseMatch.teamB)}">
@@ -413,22 +408,25 @@
 
           <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-700/40">
             <div class="flex items-center gap-1.5 text-xs">
-              <button onclick="setWinner(${matchId}, '${baseMatch.teamA}')" 
-                class="px-2.5 py-1 rounded font-semibold transition ${match.winner === baseMatch.teamA ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'}">
+              <button onclick="requestOutcomeApproval(${matchId}, '${baseMatch.teamA}')" 
+                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === baseMatch.teamA ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
                 ${baseMatch.teamA} Win
               </button>
-              <button onclick="setWinner(${matchId}, 'DRAW')" 
-                class="px-2.5 py-1 rounded font-semibold transition ${match.winner === 'DRAW' ? 'bg-amber-600 text-white' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'}">
+              <button onclick="requestOutcomeApproval(${matchId}, 'DRAW')" 
+                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === 'DRAW' ? 'bg-amber-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
                 Draw
               </button>
-              <button onclick="setWinner(${matchId}, '${baseMatch.teamB}')" 
-                class="px-2.5 py-1 rounded font-semibold transition ${match.winner === baseMatch.teamB ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'}">
+              <button onclick="requestOutcomeApproval(${matchId}, '${baseMatch.teamB}')" 
+                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
+                class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === baseMatch.teamB ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
                 ${baseMatch.teamB} Win
               </button>
             </div>
 
             <div>
-              ${renderTimerButton(matchId, match, matchEndTime)}
+              ${renderTimerButton(matchId, match, matchStartTime, matchEndTime)}
             </div>
           </div>
         `;
@@ -437,8 +435,12 @@
       });
     }
 
-    function renderTimerButton(matchId, match, scheduledEndTime) {
+    function renderTimerButton(matchId, match, scheduledStartTime, scheduledEndTime) {
       const now = Date.now();
+
+      if (now < scheduledStartTime && match.status !== 'running') {
+        return `<span class="text-xs text-slate-500 font-semibold px-2 py-1 bg-slate-900 rounded border border-slate-800">⏳ Unlocks at ${new Date(scheduledStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+      }
 
       if (match.status === 'running' && now < scheduledEndTime) {
         const remainingSec = Math.max(0, Math.floor((scheduledEndTime - now) / 1000));
@@ -453,7 +455,7 @@
 
       if (match.status === 'completed' || now >= scheduledEndTime) {
         return `<button onclick="triggerMatchResetAction(${matchId})" class="bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs px-3 py-1.5 rounded-lg font-semibold">
-          🔒 Finished (Passcode 1234)
+          🔒 Finished (Code 1357)
         </button>`;
       }
 
@@ -473,10 +475,6 @@
       }
     }
 
-    function setWinner(matchId, winner) {
-      db.ref(`matches/${matchId}`).update({ winner: winner });
-    }
-
     function updateScore(matchId, team, value) {
       const val = value === '' ? null : parseInt(value, 10);
       const updates = {};
@@ -491,7 +489,26 @@
       });
     }
 
-    // PASSCODE (1234) LOGIC
+    function requestOutcomeApproval(matchId, outcome) {
+      if (!confirm(`Are you sure you want to declare outcome "${outcome}" for Match #${matchId}? This requires 1 additional approval across devices.`)) {
+        return;
+      }
+
+      const approvals = {};
+      approvals[myDeviceId] = true;
+
+      db.ref('active_request').set({
+        type: 'SET_OUTCOME',
+        matchId: matchId,
+        outcome: outcome,
+        title: `Confirm Outcome for Match #${matchId}`,
+        desc: `Outcome "${outcome}" was submitted. Needs 1 secondary approval to update standings.`,
+        requiredApprovals: 2,
+        approvals: approvals
+      });
+    }
+
+    // PASSCODE (1357) LOGIC
     function triggerMatchResetAction(matchId) {
       pendingAction = { type: 'RESET_MATCH', matchId: matchId };
       document.getElementById('passcode-modal-title').innerText = `Reset Match #${matchId}`;
@@ -501,18 +518,18 @@
 
     function triggerWipeAction() {
       pendingAction = { type: 'RESET_ALL' };
-      document.getElementById('passcode-modal-title').innerText = `Wipe Entire Tournament`;
+      document.getElementById('passcode-modal-title').innerText = `Reset To Default (Oct 17, 2026 7:00 PM CST)`;
       document.getElementById('passcode-input').value = '';
       document.getElementById('passcode-modal').classList.remove('hidden');
     }
 
     function verifyPasscode() {
       const code = document.getElementById('passcode-input').value.trim();
-      if (code === '1234') {
+      if (code === '1357') {
         executePendingAction();
         closePasscodeModal();
       } else {
-        alert('Incorrect passcode! Enter 1234 or request approval.');
+        alert('Incorrect passcode! Enter 1357 or request multi-person approval.');
       }
     }
 
@@ -530,12 +547,17 @@
           winner: null,
           scoreA: null,
           scoreB: null,
-          startedAt: null
+          startedAt: null,
+          resultApproved: false
         });
       } else if (pendingAction.type === 'RESET_ALL') {
         triggeredAlarms = {};
         db.ref('matches').remove();
         db.ref('playoffs').remove();
+        db.ref('tournament_config').set({
+          startTime: DEFAULT_START_TIME,
+          scheduleLocked: false
+        });
       }
       pendingAction = null;
     }
@@ -559,7 +581,7 @@
         db.ref('active_request').set({
           type: 'RESET_ALL',
           title: `Reset Entire Tournament`,
-          desc: `Needs 3 approvals across devices to wipe tournament data.`,
+          desc: `Needs 3 approvals across devices to restore Oct 17, 2026 7:00 PM CST defaults.`,
           requiredApprovals: 3,
           approvals: approvals
         });
@@ -611,26 +633,44 @@
     function executeActiveRequest() {
       if (!activeRequest) return;
 
-      if (activeRequest.type === 'RESET_MATCH') {
+      if (activeRequest.type === 'SET_OUTCOME') {
+        db.ref(`matches/${activeRequest.matchId}`).update({
+          winner: activeRequest.outcome,
+          resultApproved: true
+        });
+      } else if (activeRequest.type === 'RESET_MATCH') {
         delete triggeredAlarms[activeRequest.matchId];
         db.ref(`matches/${activeRequest.matchId}`).set({
           status: 'idle',
           winner: null,
           scoreA: null,
           scoreB: null,
-          startedAt: null
+          startedAt: null,
+          resultApproved: false
         });
       } else if (activeRequest.type === 'RESET_ALL') {
         triggeredAlarms = {};
         db.ref('matches').remove();
         db.ref('playoffs').remove();
+        db.ref('tournament_config').set({
+          startTime: DEFAULT_START_TIME,
+          scheduleLocked: false
+        });
       }
 
       db.ref('active_request').remove();
     }
 
-    // SCHEDULE SETTING
+    // SCHEDULE SETTING & LOCKING
     function openScheduleModal() {
+      if (scheduleLocked) {
+        pendingAction = { type: 'UNLOCK_SCHEDULE' };
+        document.getElementById('passcode-modal-title').innerText = `Schedule Locked`;
+        document.getElementById('passcode-input').value = '';
+        document.getElementById('passcode-modal').classList.remove('hidden');
+        return;
+      }
+
       const iso = new Date(tournamentStartTime - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
       document.getElementById('tournament-datetime-input').value = iso;
       document.getElementById('schedule-modal').classList.remove('hidden');
@@ -644,11 +684,14 @@
       const val = document.getElementById('tournament-datetime-input').value;
       if (!val) return;
       const ts = new Date(val).getTime();
-      db.ref('tournament_config').update({ startTime: ts });
+      db.ref('tournament_config').set({
+        startTime: ts,
+        scheduleLocked: true
+      });
       closeScheduleModal();
     }
 
-    // STANDINGS CALCULATION
+    // STANDINGS CALCULATION & TIE-BREAKER RESOLUTION
     function calculateStandings() {
       const teams = {
         Blue:  { name: 'Blue', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 },
@@ -657,47 +700,43 @@
         Black: { name: 'Black', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 }
       };
 
-      let completedMatchesCount = 0;
+      let approvedMatchesCount = 0;
 
       defaultGroupMatches.forEach(baseMatch => {
         const m = matchesData[baseMatch.id];
-        if (!m) return;
+        if (!m || !m.resultApproved) return;
 
-        const scoreA = m.scoreA !== undefined && m.scoreA !== null ? parseInt(m.scoreA, 10) : null;
-        const scoreB = m.scoreB !== undefined && m.scoreB !== null ? parseInt(m.scoreB, 10) : null;
+        approvedMatchesCount++;
+        const tA = teams[baseMatch.teamA];
+        const tB = teams[baseMatch.teamB];
 
-        if (m.winner || (scoreA !== null && scoreB !== null)) {
-          completedMatchesCount++;
-          const tA = teams[baseMatch.teamA];
-          const tB = teams[baseMatch.teamB];
+        const scoreA = m.scoreA !== undefined && m.scoreA !== null ? parseInt(m.scoreA, 10) : 0;
+        const scoreB = m.scoreB !== undefined && m.scoreB !== null ? parseInt(m.scoreB, 10) : 0;
 
-          tA.P++; tB.P++;
+        tA.P++; tB.P++;
+        tA.GF += scoreA; tA.GA += scoreB;
+        tB.GF += scoreB; tB.GA += scoreA;
 
-          if (scoreA !== null && scoreB !== null) {
-            tA.GF += scoreA; tA.GA += scoreB;
-            tB.GF += scoreB; tB.GA += scoreA;
-          }
-
-          if (m.winner === baseMatch.teamA || (scoreA > scoreB)) {
-            tA.W++; tA.Pts += 2;
-            tB.L++;
-          } else if (m.winner === baseMatch.teamB || (scoreB > scoreA)) {
-            tB.W++; tB.Pts += 2;
-            tA.L++;
-          } else if (m.winner === 'DRAW' || scoreA === scoreB) {
-            tA.D++; tA.Pts += 1;
-            tB.D++; tB.Pts += 1;
-          }
-
-          tA.GD = tA.GF - tA.GA;
-          tB.GD = tB.GF - tB.GA;
+        if (m.winner === baseMatch.teamA || scoreA > scoreB) {
+          tA.W++; tA.Pts += 2;
+          tB.L++;
+        } else if (m.winner === baseMatch.teamB || scoreB > scoreA) {
+          tB.W++; tB.Pts += 2;
+          tA.L++;
+        } else if (m.winner === 'DRAW' || scoreA === scoreB) {
+          tA.D++; tA.Pts += 1;
+          tB.D++; tB.Pts += 1;
         }
+
+        tA.GD = tA.GF - tA.GA;
+        tB.GD = tB.GF - tB.GA;
       });
 
       const sortedTeams = Object.values(teams).sort((a, b) => {
         if (b.Pts !== a.Pts) return b.Pts - a.Pts;
         if (b.GD !== a.GD) return b.GD - a.GD;
-        return b.GF - a.GF;
+        if (b.GF !== a.GF) return b.GF - a.GF;
+        return 0.5 - Math.random(); // Random selection tie-breaker if completely equal
       });
 
       const tbody = document.getElementById('standings-table-body');
@@ -719,7 +758,7 @@
         tbody.appendChild(tr);
       });
 
-      if (completedMatchesCount >= 6) {
+      if (approvedMatchesCount >= 6) {
         document.getElementById('playoff-badge').classList.remove('hidden');
         document.getElementById('playoff-lock-msg').classList.add('hidden');
         document.getElementById('playoff-container').classList.remove('hidden');
@@ -784,7 +823,7 @@
     setInterval(() => {
       const now = new Date();
       document.getElementById('live-clock-display').innerText = `Current Time: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-      renderMatches(); // Re-render to refresh countdown timers live
+      renderMatches();
     }, 1000);
   </script>
 </body>
