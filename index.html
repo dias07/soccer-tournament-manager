@@ -111,7 +111,7 @@
     <!-- TAB 1: SCHEDULE & MATCH TIMERS -->
     <section id="tab-schedule" class="tab-content space-y-4">
       <div class="flex justify-between items-center text-sm text-slate-300 px-1">
-        <h2 class="font-bold text-white text-base">All Tournament Matches (10 Group + 2 Finals)</h2>
+        <h2 class="font-bold text-white text-base">Balanced Tournament Matches (12 Matches Total)</h2>
         <span class="text-xs text-slate-400">Win = 3 pts | Draw = 1 pt</span>
       </div>
 
@@ -124,14 +124,14 @@
     <section id="tab-standings" class="tab-content hidden space-y-4">
       <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 shadow">
         <h2 class="text-lg font-bold text-white mb-3 flex items-center justify-between">
-          <span>Live Group Standings</span>
-          <span class="text-xs font-normal text-amber-400">Top 2 to Championship • 3rd/4th to 3rd Place Match</span>
+          <span>Final Standings (1st - 4th Place)</span>
+          <span class="text-xs font-normal text-amber-400">Determined strictly by points & goal difference</span>
         </h2>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead class="text-xs text-slate-400 uppercase bg-slate-900/60 border-b border-slate-700">
               <tr>
-                <th class="py-2.5 px-3">Pos</th>
+                <th class="py-2.5 px-3">Rank</th>
                 <th class="py-2.5 px-3">Team</th>
                 <th class="py-2.5 px-3 text-center">P</th>
                 <th class="py-2.5 px-3 text-center">W</th>
@@ -238,32 +238,31 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Bulletproof Persistent Device ID stored strictly once in localStorage
     let myDeviceId = localStorage.getItem('tournament_device_id');
     if (!myDeviceId) {
       myDeviceId = 'dev_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
       localStorage.setItem('tournament_device_id', myDeviceId);
     }
 
+    // 12 Balanced Round-Robin Matches with Equal Rest Intervals
     const allTournamentMatches = [
-      { id: 1, type: 'group', teamA: "Blue", teamB: "Red" },
-      { id: 2, type: 'group', teamA: "White", teamB: "Black" },
-      { id: 3, type: 'group', teamA: "Blue", teamB: "White" },
-      { id: 4, type: 'group', teamA: "Red", teamB: "Black" },
-      { id: 5, type: 'group', teamA: "Blue", teamB: "Black" },
-      { id: 6, type: 'group', teamA: "Red", teamB: "White" },
-      { id: 7, type: 'group', teamA: "Blue", teamB: "Red" },
-      { id: 8, type: 'group', teamA: "White", teamB: "Black" },
-      { id: 9, type: 'group', teamA: "Blue", teamB: "White" },
-      { id: 10, type: 'group', teamA: "Red", teamB: "Black" },
-      { id: 11, type: 'third', teamA: "3rd Place", teamB: "4th Place" },
-      { id: 12, type: 'final', teamA: "1st Place", teamB: "2nd Place" }
+      { id: 1, teamA: "Blue", teamB: "Red" },
+      { id: 2, teamA: "White", teamB: "Black" },
+      { id: 3, teamA: "Blue", teamB: "White" },
+      { id: 4, teamA: "Red", teamB: "Black" },
+      { id: 5, teamA: "Blue", teamB: "Black" },
+      { id: 6, teamA: "Red", teamB: "White" },
+      { id: 7, teamA: "Red", teamB: "Blue" },
+      { id: 8, teamA: "Black", teamB: "White" },
+      { id: 9, teamA: "White", teamB: "Blue" },
+      { id: 10, teamA: "Black", teamB: "Red" },
+      { id: 11, teamA: "Black", teamB: "Blue" },
+      { id: 12, teamA: "White", teamB: "Red" }
     ];
 
     let tournamentStartTime = null;
     let scheduleLocked = false;
     let matchesData = {};
-    let playoffData = {};
     let activeRequest = null;
     let pendingAction = null;
     let audioContext = null;
@@ -271,12 +270,10 @@
     let audioPopupTimer = null;
     let audioPopupInterval = null;
     let triggeredAlarms = {};
-    let currentSortedTeams = [];
 
     updateScheduleHeader();
     startAudioReminderTimers();
 
-    // FIREBASE LISTENERS
     db.ref('tournament_config').on('value', snapshot => {
       const val = snapshot.val();
       if (val) {
@@ -291,11 +288,6 @@
       matchesData = snapshot.val() || {};
       renderMatches();
       calculateStandings();
-    });
-
-    db.ref('playoffs').on('value', snapshot => {
-      playoffData = snapshot.val() || {};
-      renderMatches();
     });
 
     db.ref('active_request').on('value', snapshot => {
@@ -319,7 +311,6 @@
         audioContext.resume();
       }
 
-      // Play silent audio loop & setup Media Session API to keep iOS alive in background
       const silentAudio = document.getElementById('silent-bg-audio');
       silentAudio.play().catch(e => console.log("Silent audio autoplay prevented:", e));
 
@@ -360,12 +351,10 @@
       clearInterval(audioPopupInterval);
 
       if (!audioEnabled) {
-        // Wait 5 minutes (300,000 ms) before first popup when opened or disabled
         audioPopupTimer = setTimeout(() => {
           if (!audioEnabled) {
             document.getElementById('audio-reminder-modal').classList.remove('hidden');
           }
-          // Then repeat every 2 minutes (120,000 ms)
           audioPopupInterval = setInterval(() => {
             if (!audioEnabled) {
               document.getElementById('audio-reminder-modal').classList.remove('hidden');
@@ -398,7 +387,6 @@
         }
       }
 
-      // Show Huge Popup
       document.getElementById('ended-match-title').innerText = matchTitle;
       document.getElementById('ended-match-time').innerText = `Scheduled: ${timeStr}`;
       document.getElementById('match-ended-modal').classList.remove('hidden');
@@ -436,23 +424,12 @@
       container.innerHTML = '';
       const now = Date.now();
 
-      let t3 = "3rd Place", t4 = "4th Place", t1 = "1st Place", t2 = "2nd Place";
-      if (currentSortedTeams.length >= 4) {
-        t1 = currentSortedTeams[0].name;
-        t2 = currentSortedTeams[1].name;
-        t3 = currentSortedTeams[2].name;
-        t4 = currentSortedTeams[3].name;
-      }
-
       allTournamentMatches.forEach((baseMatch, idx) => {
         const matchId = baseMatch.id;
         const match = matchesData[matchId] || { winner: null, scoreA: '', scoreB: '', status: 'idle', resultApproved: false };
 
-        let teamAName = baseMatch.teamA;
-        let teamBName = baseMatch.teamB;
-
-        if (matchId === 11) { teamAName = t3; teamBName = t4; }
-        if (matchId === 12) { teamAName = t1; teamBName = t2; }
+        const teamAName = baseMatch.teamA;
+        const teamBName = baseMatch.teamB;
 
         let startStr = '--:--', endStr = '--:--';
         let matchStartTime = 0, matchEndTime = 0;
@@ -465,7 +442,7 @@
 
           if (match.status === 'running' && now >= matchEndTime && !triggeredAlarms[matchId]) {
             triggeredAlarms[matchId] = true;
-            let matchLabel = matchId <= 10 ? `Group Match #${matchId} (${teamAName} vs ${teamBName})` : matchId === 11 ? `🥉 3rd Place Match (${teamAName} vs ${teamBName})` : `🥇 Championship (${teamAName} vs ${teamBName})`;
+            let matchLabel = `Match #${matchId} (${teamAName} vs ${teamBName})`;
             play10SecondRefereeAlarm(matchLabel, `${startStr} – ${endStr}`);
             db.ref(`matches/${matchId}`).update({ status: 'completed' });
           }
@@ -474,7 +451,6 @@
         const isMatchFinished = match.status === 'completed' || (tournamentStartTime && now >= matchEndTime);
         const isOutcomeLocked = match.resultApproved;
 
-        // Strictly require previous match's result to be officially approved before unlocking next match
         let isPreviousFinished = true;
         if (idx > 0) {
           const prevMatch = matchesData[allTournamentMatches[idx - 1].id];
@@ -484,11 +460,9 @@
         const card = document.createElement('div');
         card.className = "bg-slate-800 rounded-xl border border-slate-700 p-3.5 shadow flex flex-col gap-3";
 
-        let labelBadge = matchId <= 10 ? `Group Match #${matchId}` : matchId === 11 ? `🥉 3rd Place Match` : `🥇 Championship`;
-
         card.innerHTML = `
           <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-700/60 pb-2">
-            <span class="font-bold text-amber-400">${labelBadge}</span>
+            <span class="font-bold text-amber-400">Match #${matchId}</span>
             <span class="font-mono bg-slate-900/80 px-2.5 py-0.5 rounded text-amber-300 font-bold">${startStr} – ${endStr}</span>
           </div>
 
@@ -517,17 +491,17 @@
           <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-700/40">
             <div class="flex items-center gap-1.5 text-xs">
               <button onclick="requestOutcomeApproval(${matchId}, '${teamAName}')" 
-                ${(!isMatchFinished || isOutcomeLocked || teamAName.includes('Place')) ? 'disabled' : ''}
+                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
                 class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === teamAName ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
                 ${teamAName} Win
               </button>
               <button onclick="requestOutcomeApproval(${matchId}, 'DRAW')" 
-                ${(!isMatchFinished || isOutcomeLocked || teamAName.includes('Place')) ? 'disabled' : ''}
+                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
                 class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === 'DRAW' ? 'bg-amber-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
                 Draw
               </button>
               <button onclick="requestOutcomeApproval(${matchId}, '${teamBName}')" 
-                ${(!isMatchFinished || isOutcomeLocked || teamBName.includes('Place')) ? 'disabled' : ''}
+                ${(!isMatchFinished || isOutcomeLocked) ? 'disabled' : ''}
                 class="px-2.5 py-1 rounded font-semibold transition disabled:opacity-40 ${match.winner === teamBName ? 'bg-emerald-600 text-white' : 'bg-slate-700/60 text-slate-300'}">
                 ${teamBName} Win
               </button>
@@ -675,7 +649,6 @@
       } else if (pendingAction.type === 'RESET_ALL') {
         triggeredAlarms = {};
         db.ref('matches').remove();
-        db.ref('playoffs').remove();
         db.ref('tournament_config').set({
           startTime: null,
           scheduleLocked: false
@@ -773,7 +746,6 @@
       } else if (activeRequest.type === 'RESET_ALL') {
         triggeredAlarms = {};
         db.ref('matches').remove();
-        db.ref('playoffs').remove();
         db.ref('tournament_config').set({
           startTime: null,
           scheduleLocked: false
@@ -825,7 +797,7 @@
         Black: { name: 'Black', P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 }
       };
 
-      allTournamentMatches.slice(0, 10).forEach(baseMatch => {
+      allTournamentMatches.forEach(baseMatch => {
         const m = matchesData[baseMatch.id];
         if (!m || !m.resultApproved) return;
 
@@ -839,7 +811,6 @@
         tA.GF += scoreA; tA.GA += scoreB;
         tB.GF += scoreB; tB.GA += scoreA;
 
-        // WIN POINT CHANGED TO 3 POINTS HERE
         if (m.winner === baseMatch.teamA || scoreA > scoreB) {
           tA.W++; tA.Pts += 3;
           tB.L++;
@@ -855,7 +826,7 @@
         tB.GD = tB.GF - tB.GA;
       });
 
-      currentSortedTeams = Object.values(teams).sort((a, b) => {
+      const sortedTeams = Object.values(teams).sort((a, b) => {
         if (b.Pts !== a.Pts) return b.Pts - a.Pts;
         if (b.GD !== a.GD) return b.GD - a.GD;
         if (b.GF !== a.GF) return b.GF - a.GF;
@@ -865,11 +836,11 @@
       const tbody = document.getElementById('standings-table-body');
       tbody.innerHTML = '';
 
-      currentSortedTeams.forEach((t, idx) => {
+      sortedTeams.forEach((t, idx) => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-700/30 transition";
         tr.innerHTML = `
-          <td class="py-2.5 px-3 font-bold text-slate-400">${idx + 1}</td>
+          <td class="py-2.5 px-3 font-bold text-amber-400">${idx + 1}st/nd/rd/th</td>
           <td class="py-2.5 px-3 font-bold ${getTeamColorClass(t.name)}">${t.name}</td>
           <td class="py-2.5 px-3 text-center text-slate-300">${t.P}</td>
           <td class="py-2.5 px-3 text-center text-emerald-400">${t.W}</td>
